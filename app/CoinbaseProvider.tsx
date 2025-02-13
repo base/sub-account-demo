@@ -97,7 +97,8 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     const [spendPermissionSignature, setSpendPermissionSignature] = useState<string | null>(null);
     const [periodSpend, setPeriodSpend] = useState<PeriodSpend | null>(null);
     const [remainingSpend, setRemainingSpend] = useState<BigInt | null>(fromHex('0x71afd498d0000', 'bigint'));
-    const walletClient = createWalletClient({
+
+    const walletClient = useMemo(() => createWalletClient({
         chain: baseSepolia,
         transport: custom({
           async request({ method, params }) {
@@ -105,12 +106,13 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
             return response;
           }
         }),
-      });
+    }), [provider]);
   
-    const publicClient = createPublicClient({
+    const publicClient = useMemo(() => createPublicClient({
       chain: baseSepolia,
       transport: http(),
-    });
+    }), []);
+
     const switchChain = useCallback(async () => {
         await handleSwitchChain(provider);
     }, [provider]);
@@ -225,7 +227,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('cbsw-demo-spendPermissions-signature', signature as string);
     }, [provider, address, subaccount]);
 
-    const refreshPeriodSpend = async () => {
+    const refreshPeriodSpend = useCallback(async () => {
       try {
         if (!spendPermission) return;
         const currentPeriod = await publicClient.readContract({
@@ -239,11 +241,10 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
         setRemainingSpend(remainingSpend);
         setPeriodSpend(currentPeriod);
 
-
       } catch (error) {
         console.error('custom logs refreshPeriodSpend error:', error);
       }
-    };
+    }, [spendPermission, publicClient]);
 
     const sendCallWithSpendPermission = useCallback(async (calls: any[], txValueWei: bigint): Promise<string> => {
       const response = await provider.request({
