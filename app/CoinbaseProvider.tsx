@@ -1,6 +1,6 @@
 'use client';
 import { createCoinbaseWalletSDK, getCryptoKeyAccount, ProviderInterface } from "@coinbase/wallet-sdk";
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Address, Chain, createPublicClient, createWalletClient, custom, http, WalletClient } from "viem";
 import { baseSepolia } from "viem/chains";
 
@@ -13,6 +13,7 @@ type CoinbaseContextType = {
     subaccount: Address | null;
     switchChain: () => Promise<void>;
     currentChain: Chain | null;
+    disconnect: () => Promise<void>;
 };
 const CoinbaseContext = createContext<CoinbaseContextType>({ 
     provider: null, 
@@ -20,8 +21,9 @@ const CoinbaseContext = createContext<CoinbaseContextType>({
     connect: () => {},
     subaccount: null,
     switchChain: async () => {},
-    currentChain: null});
-  
+    currentChain: null,
+    disconnect: async () => {}
+});
 
 const sdk = createCoinbaseWalletSDK({
     appName: 'BasePaint Mini',
@@ -57,8 +59,12 @@ async function addAddress(provider: ProviderInterface, chain: Chain) {
 
 async function handleSwitchChain(provider: ProviderInterface) {
     const response = await provider.request({
-        method: 'wallet_switchChain',
-        params: [baseSepolia.id],
+        method: 'wallet_switchEthereumChain',
+        params: [
+          {
+            chainId: `0x${baseSepolia.id.toString(16)}`
+          }
+        ],
     });
     console.log('custom logs switchChain resp:', response);
 }
@@ -87,37 +93,44 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     }, [provider]);
   
     const connect = useCallback(async () => {
-      walletClient
-        .requestAddresses()
-        .then(async (addresses) => {
-          if (addresses.length > 0) {
-            setAddress(addresses[0])
-            if (!subaccount) {
-              // request creation of one. TODO: if one exists, add new owner.
-              const subaccount = await addAddress(provider, baseSepolia);
-              setSubaccount(subaccount as Address);
+        walletClient
+          .requestAddresses()
+          .then(async (addresses) => {
+            if (addresses.length > 0) {
+              setAddress(addresses[0])
+              if (!subaccount) {
+                // request creation of one. TODO: if one exists, add new owner.
+                const subAcc = await addAddress(provider, baseSepolia);
+                setSubaccount(subAcc as Address);
+              }
             }
-          }
-    });
+      });
+    }, [walletClient, setSubaccount, provider, subaccount]);
+
+    const disconnect = useCallback(async () => {
+      provider.disconnect();
+      setAddress(null);
+      setSubaccount(null);
+  }, [provider]);
   
-    }, [walletClient, setSubaccount]);
-  
-    /*useEffect(() => {
+    useEffect(() => {
       walletClient
         .getAddresses()
         .then((addresses) => {
           console.log('custom logs getAddresses resp:', addresses);
             if(addresses.length > 0) {
-              setAddress(addresses[0])
+              setSubaccount(addresses[0])
             }
           });
-    }, [walletClient]);*/
+    }, [walletClient]);
    
   
     console.log('wallet client', walletClient);
   
     return (
-      <CoinbaseContext.Provider value={{ provider, walletClient, publicClient, address, connect, subaccount, switchChain, currentChain }}>
+      <CoinbaseContext.Provider value={{ 
+        disconnect,
+        provider, walletClient, publicClient, address, connect, subaccount, switchChain, currentChain }}>
         {children}
       </CoinbaseContext.Provider>
     );

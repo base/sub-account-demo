@@ -5,9 +5,10 @@ import PostCard from "./components/PostCard";
 import Hero from "./components/Hero";
 import { Post } from "./types";
 import { useEffect, useState } from "react";
+import WalletFooter from "./components/WalletFooter";
 
 export default function Home() {
-  const { address, connect, currentChain, switchChain } = useCoinbaseProvider();
+  const { address, subaccount, connect, currentChain, switchChain } = useCoinbaseProvider();
   const [posts, setPosts] = useState<Post[]>([]);
   
   useEffect(() => {
@@ -20,7 +21,7 @@ export default function Home() {
   }, []);
 
   
-  if (!address) {
+  if (!address && !subaccount) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50">
         <Hero />
@@ -34,7 +35,6 @@ export default function Home() {
     );
   }
 
-  console.log('currentChain', currentChain)
   if (currentChain?.id !== baseSepolia.id) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50">
@@ -58,6 +58,7 @@ export default function Home() {
           <PostCard key={post.id} post={post} />
         ))}
       </div>
+      <WalletFooter />
     </div>
   );
 }
