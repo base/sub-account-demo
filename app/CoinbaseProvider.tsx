@@ -39,18 +39,6 @@ const CoinbaseContext = createContext<CoinbaseContextType>({
     remainingSpend: null
 });
 
-const sdk = createCoinbaseWalletSDK({
-    appName: 'BasePaint Mini',
-    appChainIds: [baseSepolia.id],
-    preference: {
-        options: "smartWalletOnly",
-        keysUrl: 'https://keys-dev.coinbase.com/connect',
-    },
-    subaccount: {
-        getSigner: getCryptoKeyAccount
-    }
-});
-
 async function addAddress(provider: ProviderInterface, chain: Chain) {
     const account = await getCryptoKeyAccount();
     const response = (await provider.request({
@@ -89,7 +77,7 @@ type PeriodSpend = {
 }
 
 export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
-    const [provider] = useState<ProviderInterface>(sdk.getProvider());
+    const [provider, setProvider] = useState<ProviderInterface | null>(null);
     const [subaccount, setSubaccount] = useState<Address | null>(null);
     const [address, setAddress] = useState<Address | null>(null);
     const [currentChain, setCurrentChain] = useState<Chain | null>(baseSepolia);
@@ -98,7 +86,24 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     const [periodSpend, setPeriodSpend] = useState<PeriodSpend | null>(null);
     const [remainingSpend, setRemainingSpend] = useState<BigInt | null>(fromHex('0x71afd498d0000', 'bigint'));
 
-    const walletClient = useMemo(() => createWalletClient({
+  useEffect(() => {
+    const sdk = createCoinbaseWalletSDK({
+      appName: 'BasePaint Mini',
+      appChainIds: [baseSepolia.id],
+      preference: {
+        options: "smartWalletOnly",
+        keysUrl: 'https://keys-dev.coinbase.com/connect',
+      },
+      subaccount: {
+        getSigner: getCryptoKeyAccount
+      }
+    });
+    setProvider(sdk.getProvider());
+  }, []);
+
+    const walletClient = useMemo(() => {
+      if (!provider) return null;
+      return createWalletClient({
         chain: baseSepolia,
         transport: custom({
           async request({ method, params }) {
@@ -106,7 +111,8 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
             return response;
           }
         }),
-    }), [provider]);
+      });
+    }, [provider]);
   
     const publicClient = useMemo(() => createPublicClient({
       chain: baseSepolia,
@@ -114,13 +120,15 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     }), []);
 
     const switchChain = useCallback(async () => {
-        await handleSwitchChain(provider);
+      if (!provider) return;
+      await handleSwitchChain(provider);
     }, [provider]);
   
     const connect = useCallback(async () => {
-        walletClient
-          .requestAddresses()
-          .then(async (addresses) => {
+      if (!walletClient || !provider) return;
+      walletClient
+        .requestAddresses()
+        .then(async (addresses) => {
             if (addresses.length > 0) {
               setAddress(addresses[0])
               if (!subaccount) {
@@ -134,12 +142,14 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     }, [walletClient, setSubaccount, provider, subaccount]);
 
     const disconnect = useCallback(async () => {
+      if (!provider) return;
       provider.disconnect();
       setAddress(null);
       setSubaccount(null);
   }, [provider]);
   
     useEffect(() => {
+      if (!walletClient) return;
       walletClient
         .getAddresses()
         .then((addresses) => {
@@ -180,6 +190,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       salt: string;
       extraData: string;
     }) => {
+      if (!provider) return;
       const spendPermission = {
         account: address,
         spender: subaccount,
@@ -247,6 +258,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     }, [spendPermission, publicClient]);
 
     const sendCallWithSpendPermission = useCallback(async (calls: any[], txValueWei: bigint): Promise<string> => {
+      if (!provider) return '';
       const response = await provider.request({
         method: 'wallet_sendCalls',
         params: [
