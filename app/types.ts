@@ -6,7 +6,12 @@ export interface Post {
       username: string;
       pfp_url: string;
       power_badge: boolean;
-    };
+      custody_address: `0x${string}`;
+      verified_addresses: {
+        eth_addresses: `0x${string}`[];
+        sol_addresses: string[];
+      }
+    }
     embeds: {
       metadata: {
         content_type: string;
@@ -15,10 +20,6 @@ export interface Post {
     }[];
     text: string;
     timestamp: string;
-    verified_addresses: {
-      eth_addresses: string[];
-      sol_addresses: string[];
-    }
     reactions: {
       likes_count: number;
       recasts_count: number;

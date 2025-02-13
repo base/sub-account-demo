@@ -1,15 +1,13 @@
 import { Post } from "../types";
 import { useState } from "react";
 import { timeAgo } from '../utils/timeAgo';
+import TipModal from './TipModal';
 
 export default function PostCard({ post }: { post: Post }) {
   const [showTipModal, setShowTipModal] = useState(false);
-  const [customTipAmount, setCustomTipAmount] = useState("");
   
   // Example balance - you'll need to replace this with actual user balance from your app state
   const currentBalance = 100; 
-
-  const predefinedTips = [1, 5, 20, 50];
 
   return (
     <div className="border border-gray-200 p-4 rounded-lg mb-4">
@@ -97,59 +95,13 @@ export default function PostCard({ post }: { post: Post }) {
         </div>
       </div>
 
-      {showTipModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full">
-            <h2 className="text-xl font-bold mb-4">Send a tip to {post.author.name}</h2>
-            
-            <div className="mb-4">
-              <p className="text-sm text-gray-600 mb-2">Your balance: ${currentBalance}</p>
-              <div className="grid grid-cols-2 gap-2">
-                {predefinedTips.map((amount) => (
-                  <button
-                    key={amount}
-                    className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-                    onClick={() => setCustomTipAmount(amount.toString())}
-                  >
-                    ${amount}
-                  </button>
-                ))}
-              </div>
-              
-              <div className="mt-4">
-                <label className="block text-sm text-gray-600 mb-1">Custom amount</label>
-                <input
-                  type="number"
-                  value={customTipAmount}
-                  onChange={(e) => setCustomTipAmount(e.target.value)}
-                  className="w-full border rounded p-2"
-                  placeholder="Enter amount"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-            </div>
-
-            <div className="flex space-x-3">
-              <button
-                className="flex-1 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-                onClick={() => {
-                  // Add your tip handling logic here
-                  setShowTipModal(false);
-                }}
-              >
-                Send Tip
-              </button>
-              <button
-                className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300"
-                onClick={() => setShowTipModal(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <TipModal
+        isOpen={showTipModal}
+        onClose={() => setShowTipModal(false)}
+        recipientName={post.author.username}
+        recipientAddress={(post.author.verified_addresses.eth_addresses[0] || post.author.custody_address) as `0x${string}`}
+        currentBalance={currentBalance}
+      />
     </div>
   );
 }
