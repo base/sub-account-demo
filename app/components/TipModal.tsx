@@ -25,7 +25,7 @@ export default function TipModal({
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const predefinedTips = [1, 5, 20, 50];
-  const { provider, currentChain, spendPermissionSignature, spendPermission, sendCallWithSpendPermission } = useCoinbaseProvider();
+  const { provider, currentChain, sendCallWithSpendPermission } = useCoinbaseProvider();
   const [isLoading, setIsLoading] = useState(false);
   const {ethUsdPrice} = useEthUsdPrice();
   
@@ -68,7 +68,7 @@ export default function TipModal({
     }
   };
 
-  const startConfirmationTimer = () => {
+  const startConfirmationTimer = async() => {
     setConfirmationProgress(0);
     const startTime = Date.now();
     const duration = 3000; // 3 seconds

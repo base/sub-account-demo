@@ -1,3 +1,5 @@
+import { Address } from "viem";
+
 export interface Post {
     id: string;
     author: {
@@ -28,3 +30,16 @@ export interface Post {
        count: number;
     }
   }
+
+  export type SpendPermission = {
+    account: Address;
+    spender: Address;
+    token: Address;
+    allowance: string;
+    period: number;
+    start: number;
+    end: number;
+    salt: BigInt;
+    extraData: string;
+  };
+  

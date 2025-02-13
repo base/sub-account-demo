@@ -1,8 +1,9 @@
+import { formatEther } from "viem";
 import { useCoinbaseProvider } from "../CoinbaseProvider";
 
 
 export default function WalletFooter() {
-    const { subaccount, disconnect, currentChain } = useCoinbaseProvider();
+    const { subaccount, disconnect, currentChain, remainingSpend } = useCoinbaseProvider();
     if (!subaccount) return null;
 
   return (
@@ -18,7 +19,7 @@ export default function WalletFooter() {
         </div>
         <div className="text-sm text-gray-600">
           <span className="font-medium">Balance:</span>{' '}
-          <span>0.00 ETH</span> {/* Placeholder for actual balance */}
+          <span>{remainingSpend ? formatEther(remainingSpend.valueOf()) : '0.00'}</span> 
         </div>
         <button 
           onClick={() => disconnect()} 
