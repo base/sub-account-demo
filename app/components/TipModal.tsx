@@ -25,7 +25,7 @@ export default function TipModal({
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const predefinedTips = [1, 5, 20, 50];
-  const { provider, currentChain, spendPermissionSignature, spendPermission } = useCoinbaseProvider();
+  const { provider, currentChain, spendPermissionSignature, spendPermission, sendCallWithSpendPermission } = useCoinbaseProvider();
   const [isLoading, setIsLoading] = useState(false);
   const {ethUsdPrice} = useEthUsdPrice();
   
@@ -49,39 +49,14 @@ export default function TipModal({
         const tipAmountEth = convertUsdToEth(tipAmountUsd);
         const tipAmountWei = BigInt(Math.floor(tipAmountEth * 1e18));
 
-        const txHash = await provider.request({
-            method: 'wallet_sendCalls',
-            params: [
-                {
-                    chainId: currentChain.id,
-                    calls: [
-                        {
-                            to: SPEND_PERMISSION_MANAGER_ADDRESS,
-                            abi: spendPermissionManagerAbi,
-                            functionName: 'approveWithSignature',
-                            args: [spendPermission, spendPermissionSignature]
-                        },
-                        {
-                            to: SPEND_PERMISSION_MANAGER_ADDRESS,
-                            abi: spendPermissionManagerAbi,
-                            functionName: 'spend',
-                            args: [spendPermission, tipAmountWei]
-                        },
-                        {
-                            to: recipientAddress,
-                            data: '0x',
-                            value: tipAmountWei,
-                        }
-                    ],
-                    version: '1',
-                    capabilities: {
-                        paymasterService: {
-                            url: process.env.NEXT_PUBLIC_PAYMASTER_SERVICE_URL!
-                        }
-                    }
-                }
-            ],
-        });
+        const txHash = await sendCallWithSpendPermission([
+            {
+                to: recipientAddress,
+                data: '0x',
+                value: tipAmountWei,
+            }
+        ], tipAmountWei);
+
         console.log('Transaction hash:', txHash);
         setConfirmationProgress(0);
         setTransactionHash(txHash as string);

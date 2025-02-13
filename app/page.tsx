@@ -6,7 +6,7 @@ import Hero from "./components/Hero";
 import { Post } from "./types";
 import { useEffect, useState } from "react";
 import WalletFooter from "./components/WalletFooter";
-import { Hex, parseUnits } from "viem";
+import { Hex } from "viem";
 
 export default function Home() {
   const { address, subaccount, connect, currentChain, switchChain, spendPermissionSignature, signSpendPermission } = useCoinbaseProvider();
@@ -69,6 +69,19 @@ export default function Home() {
         <div>
           Granting permission for Coinbase Smart wallet demo to spend 0.05 ETH per day...
         </div>
+        <button 
+          onClick={() => signSpendPermission({
+            allowance: '0x71afd498d0000',// 0.002 ETH per day (~$5)
+            period: 86400, // seconds in a day
+            start: Math.floor(Date.now() / 1000), // unix timestamp
+            end: Math.floor(Date.now() / 1000 + 30 * 24 * 60 * 60), // one month from now
+            salt: '0x1',
+            extraData: "0x" as Hex,
+          })}
+          className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+        >
+          Grant permission
+        </button>
       </div>
     );
   }

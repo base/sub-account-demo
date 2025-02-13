@@ -3,6 +3,7 @@ import { createCoinbaseWalletSDK, getCryptoKeyAccount, ProviderInterface } from 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Address, Chain, createPublicClient, createWalletClient, custom, http, WalletClient } from "viem";
 import { baseSepolia } from "viem/chains";
+import { spendPermissionManagerAbi } from "./abi";
 
 export const SPEND_PERMISSION_MANAGER_ADDRESS = '0xf85210B21cC50302F477BA56686d2019dC9b67Ad';
 
@@ -19,6 +20,7 @@ type CoinbaseContextType = {
     spendPermission: object | null;
     spendPermissionSignature: string | null;
     signSpendPermission: (spendPermission: object) => Promise<string>;
+    sendCallWithSpendPermission: (calls: any[], txValueWei: bigint) => Promise<string>;
 };
 const CoinbaseContext = createContext<CoinbaseContextType>({ 
     provider: null, 
@@ -30,7 +32,8 @@ const CoinbaseContext = createContext<CoinbaseContextType>({
     disconnect: async () => {},
     spendPermission: null,
     spendPermissionSignature: null,
-    signSpendPermission: async () => ''
+    signSpendPermission: async () => '',
+    sendCallWithSpendPermission: async () => ''
 });
 
 const sdk = createCoinbaseWalletSDK({
@@ -188,12 +191,59 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       });
       setSpendPermission(spendPermission);
       setSpendPermissionSignature(signature as string);
-      console.log('custom logs signSpendPermission resp:', spendPermission, signature);
     }, [provider, address, subaccount]);
+
+    const sendCallWithSpendPermission = useCallback(async (calls: any[], txValueWei: bigint): Promise<string> => {
+      console.log("calls", [
+        {
+          to: SPEND_PERMISSION_MANAGER_ADDRESS,
+          abi: spendPermissionManagerAbi,
+          functionName: 'approveWithSignature',
+          args: [spendPermission, spendPermissionSignature]
+      },
+      {
+          to: SPEND_PERMISSION_MANAGER_ADDRESS,
+          abi: spendPermissionManagerAbi,
+          functionName: 'spend',
+          args: [spendPermission, txValueWei]
+      },
+        ...calls
+    ],)
+      const response = await provider.request({
+        method: 'wallet_sendCalls',
+        params: [
+          {
+            chainId: currentChain?.id,
+            calls: [
+                {
+                  to: SPEND_PERMISSION_MANAGER_ADDRESS,
+                  abi: spendPermissionManagerAbi,
+                  functionName: 'approveWithSignature',
+                  args: [spendPermission, spendPermissionSignature]
+              },
+              {
+                  to: SPEND_PERMISSION_MANAGER_ADDRESS,
+                  abi: spendPermissionManagerAbi,
+                  functionName: 'spend',
+                  args: [spendPermission, txValueWei]
+              },
+               ...calls
+
+            ],
+            version: '1',
+            capabilities: {
+                paymasterService: {
+                    url: process.env.NEXT_PUBLIC_PAYMASTER_SERVICE_URL!
+                }
+            }
+          }   
+      ]});
+      return response as string;
+    }, [provider, spendPermissionSignature, spendPermission, currentChain]);
   
     return (
       <CoinbaseContext.Provider value={{ 
-        disconnect, spendPermission, spendPermissionSignature, signSpendPermission,
+        disconnect, spendPermission, spendPermissionSignature, signSpendPermission, sendCallWithSpendPermission,
         provider, walletClient, publicClient, address, connect, subaccount, switchChain, currentChain }}>
         {children}
       </CoinbaseContext.Provider>
