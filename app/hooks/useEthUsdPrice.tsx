@@ -8,8 +8,37 @@ interface CoinbaseResponse {
   };
 }
 
-// Cache the fetched price in memory
+// Cache both the price and the in-flight promise
 let cachedEthUsdPrice: number | null = null;
+let currentFetchPromise: Promise<number> | null = null;
+
+const fetchPriceOnce = async (): Promise<number> => {
+  // Return cached price if available
+  if (cachedEthUsdPrice !== null) {
+    return cachedEthUsdPrice;
+  }
+
+  // Return existing promise if there's already a request in flight
+  if (currentFetchPromise !== null) {
+    return currentFetchPromise;
+  }
+
+  // Create new promise for the fetch
+  currentFetchPromise = fetch('https://api.coinbase.com/v2/prices/ETH-USD/spot')
+    .then((response) => response.json())
+    .then((data: CoinbaseResponse) => {
+      const newPrice = parseFloat(data.data.amount);
+      cachedEthUsdPrice = newPrice;
+      currentFetchPromise = null;
+      return newPrice;
+    })
+    .catch((error) => {
+      currentFetchPromise = null;
+      throw error;
+    });
+
+  return currentFetchPromise;
+};
 
 export function useEthUsdPrice() {
   const [ethUsdPrice, setEthUsdPrice] = useState<number | null>(cachedEthUsdPrice);
@@ -17,27 +46,21 @@ export function useEthUsdPrice() {
   const [loading, setLoading] = useState<boolean>(!cachedEthUsdPrice);
 
   useEffect(() => {
-    const fetchPrice = async () => {
-      if (cachedEthUsdPrice !== null) {
-        return;
-      }
+    if (cachedEthUsdPrice !== null) {
+      return;
+    }
 
-      try {
-        const response = await fetch('https://api.coinbase.com/v2/prices/ETH-USD/spot');
-        const data: CoinbaseResponse = await response.json();
-        const newPrice = parseFloat(data.data.amount);
-        
-        cachedEthUsdPrice = newPrice;
-        setEthUsdPrice(newPrice);
+    fetchPriceOnce()
+      .then((price) => {
+        setEthUsdPrice(price);
         setError(null);
-      } catch (err) {
+      })
+      .catch((err) => {
         setError(err instanceof Error ? err.message : 'Failed to fetch ETH/USD price');
-      } finally {
+      })
+      .finally(() => {
         setLoading(false);
-      }
-    };
-
-    fetchPrice();
+      });
   }, []);
 
   return useMemo(() => ({

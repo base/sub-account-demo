@@ -53,7 +53,9 @@ export default function TipModal({
                     ],
                     version: '1',
                     capabilities: {
-                        paymasterService: process.env.NEXT_PUBLIC_PAYMASTER_SERVICE_URL!
+                        paymasterService: {
+                            url: process.env.NEXT_PUBLIC_PAYMASTER_SERVICE_URL!
+                        }
                     }
                 }
             ],
