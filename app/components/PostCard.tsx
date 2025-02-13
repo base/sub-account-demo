@@ -1,7 +1,6 @@
 import { Post } from "../types";
 import { useState } from "react";
 import { timeAgo } from '../utils/timeAgo';
-import TipModal from './TipModal';
 import { toast } from 'react-hot-toast';
 import { useCoinbaseProvider } from '../CoinbaseProvider';
 import { useEthUsdPrice } from '../hooks/useEthUsdPrice';
@@ -14,18 +13,17 @@ export default function PostCard({ post }: { post: Post }) {
   const { ethUsdPrice } = useEthUsdPrice();
   
   // Example balance - you'll need to replace this with actual user balance from your app state
-  const currentBalance = 100; 
 
   const handleQuickTip = async () => {
-    const DEFAULT_TIP_USD = 1; // $1 tip
+    const DEFAULT_TIP_USD = 0.1; // $1 tip
     
-    const tipAmountEth = DEFAULT_TIP_USD / (ethUsdPrice || 3000); // fallback price if not loaded
+    const tipAmountEth = DEFAULT_TIP_USD / (ethUsdPrice || 2500); // fallback price if not loaded
     const tipAmountWei = BigInt(Math.floor(tipAmountEth * 1e18));
     
     const toastId = toast.loading(
       (t) => (
         <div>
-          <div>Sending $1 tip to @{post.author.username}</div>
+          <div>Sending 10¢ tip to @{post.author.username}</div>
           <button
             onClick={() => {
               activeTipToasts.delete(t.id);
@@ -72,7 +70,8 @@ export default function PostCard({ post }: { post: Post }) {
             >
               View transaction
             </a>
-          </div>
+          </div>,
+          { duration: 5000 }
         );
         console.log('Tip sent:', getExplorerUrl(txHash));
       } catch (error) {
@@ -163,19 +162,12 @@ export default function PostCard({ post }: { post: Post }) {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span>Tip ($1)</span>
+              <span>Tip (10¢)</span>
             </button>
           </div>
         </div>
       </div>
 
-      <TipModal
-        isOpen={showTipModal}
-        onClose={() => setShowTipModal(false)}
-        recipientName={post.author.username}
-        recipientAddress={(post.author.verified_addresses.eth_addresses[0] || post.author.custody_address) as `0x${string}`}
-        currentBalance={currentBalance}
-      />
     </div>
   );
 }

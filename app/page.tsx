@@ -87,7 +87,6 @@ export default function Home() {
     );
   }
 
-  console.log('posts', posts)
   return (
     <div>
       <Toaster position="top-right" />
