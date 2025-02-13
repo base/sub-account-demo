@@ -2,12 +2,85 @@ import { Post } from "../types";
 import { useState } from "react";
 import { timeAgo } from '../utils/timeAgo';
 import TipModal from './TipModal';
+import { toast } from 'react-hot-toast';
+import { useCoinbaseProvider } from '../CoinbaseProvider';
+import { useEthUsdPrice } from '../hooks/useEthUsdPrice';
+
+const activeTipToasts = new Set<string>();
 
 export default function PostCard({ post }: { post: Post }) {
   const [showTipModal, setShowTipModal] = useState(false);
+  const { sendCallWithSpendPermission, currentChain } = useCoinbaseProvider();
+  const { ethUsdPrice } = useEthUsdPrice();
   
   // Example balance - you'll need to replace this with actual user balance from your app state
   const currentBalance = 100; 
+
+  const handleQuickTip = async () => {
+    const DEFAULT_TIP_USD = 1; // $1 tip
+    
+    const tipAmountEth = DEFAULT_TIP_USD / (ethUsdPrice || 3000); // fallback price if not loaded
+    const tipAmountWei = BigInt(Math.floor(tipAmountEth * 1e18));
+    
+    const toastId = toast.loading(
+      (t) => (
+        <div>
+          <div>Sending $1 tip to @{post.author.username}</div>
+          <button
+            onClick={() => {
+              activeTipToasts.delete(t.id);
+              toast.dismiss(t.id);
+              toast.error('Tip cancelled');
+            }}
+            className="mt-2 bg-red-500 text-white px-2 py-1 rounded text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      ),
+      { duration: 5000 }
+    );
+
+    activeTipToasts.add(toastId);
+
+    setTimeout(async () => {
+      if (!activeTipToasts.has(toastId)) return;
+      activeTipToasts.delete(toastId);
+      
+      try {
+        const txHash = await sendCallWithSpendPermission([
+          {
+            to: (post.author.verified_addresses.eth_addresses[0] || post.author.custody_address) as `0x${string}`,
+            data: '0x',
+            value: tipAmountWei,
+          }
+        ], tipAmountWei);
+
+        const getExplorerUrl = (txHash: string) => {
+          if (!currentChain) return '#';
+          return `${currentChain.blockExplorers?.default.url}/tx/${txHash}`;
+        };
+
+        toast.success(
+          <div>
+            Successfully tipped @{post.author.username}!
+            <a 
+              href={getExplorerUrl(txHash)}
+              target="_blank"
+              rel="noopener noreferrer" 
+              className="block text-blue-500 hover:underline"
+            >
+              View transaction
+            </a>
+          </div>
+        );
+        console.log('Tip sent:', getExplorerUrl(txHash));
+      } catch (error) {
+        toast.error('Failed to send tip');
+        console.error('Tip error:', error);
+      }
+    }, 5000);
+  };
 
   return (
     <div className="border border-gray-200 p-4 rounded-lg mb-4">
@@ -84,12 +157,13 @@ export default function PostCard({ post }: { post: Post }) {
             
             <button 
               className="flex items-center space-x-2 hover:text-yellow-500 cursor-pointer"
-              onClick={() => setShowTipModal(true)}
+              onClick={handleQuickTip}
+              onDoubleClick={() => setShowTipModal(true)}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span>Tip</span>
+              <span>Tip ($1)</span>
             </button>
           </div>
         </div>

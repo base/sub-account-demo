@@ -7,6 +7,7 @@ import { Post } from "./types";
 import { useEffect, useState } from "react";
 import WalletFooter from "./components/WalletFooter";
 import { Hex } from "viem";
+import { Toaster } from 'react-hot-toast';
 
 export default function Home() {
   const { address, subaccount, connect, currentChain, switchChain, spendPermissionSignature, signSpendPermission } = useCoinbaseProvider();
@@ -89,6 +90,7 @@ export default function Home() {
   console.log('posts', posts)
   return (
     <div>
+      <Toaster position="top-right" />
       <Hero />
       <div className="max-w-2xl mx-auto py-8 px-4">
         {posts.map((post) => (
