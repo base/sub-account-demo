@@ -88,7 +88,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const sdk = createCoinbaseWalletSDK({
-      appName: 'BasePaint Mini',
+      appName: 'Coinbase Wallet demo',
       appChainIds: [baseSepolia.id],
       preference: {
         options: "smartWalletOnly",
