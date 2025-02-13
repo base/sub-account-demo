@@ -6,44 +6,6 @@ import Hero from "./components/Hero";
 import { Post } from "./types";
 import { useEffect, useState } from "react";
 
-const mockPosts: Post[] = [
-  {
-    id: '1',
-    author: {
-      name: 'John Doe',
-      username: '@johndoe',
-      profilePicture: 'https://placecats.com/100/100',
-    },
-    timestamp: '2h ago',
-    content: {
-      text: 'Just launched my new project! 🚀 Really excited to share it with everyone.',
-      image: 'https://picsum.photos/seed/1/600/400',
-    },
-    stats: {
-      likes: 142,
-      comments: 28,
-      reposts: 12,
-    },
-  },
-  {
-    id: '2',
-    author: {
-      name: 'Jane Smith',
-      username: '@janesmith',
-      profilePicture: 'https://placecats.com/100/100',
-    },
-    timestamp: '4h ago',
-    content: {
-      text: 'Beautiful day for coding! ☀️ #coding #developer',
-    },
-    stats: {
-      likes: 89,
-      comments: 15,
-      reposts: 5,
-    },
-  },
-];
-
 export default function Home() {
   const { address, connect, currentChain, switchChain } = useCoinbaseProvider();
   const [posts, setPosts] = useState<Post[]>([]);
@@ -87,6 +49,7 @@ export default function Home() {
     );
   }
 
+  console.log('posts', posts)
   return (
     <div>
       <Hero />

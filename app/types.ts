@@ -21,9 +21,9 @@ export interface Post {
     }
     reactions: {
       likes_count: number;
-      recast_count: number;
+      recasts_count: number;
     }
     replies: {
-      replies_count: number;
+       count: number;
     }
   }

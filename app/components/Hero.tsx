@@ -6,8 +6,7 @@ export default function Hero() {
         <span className="block text-indigo-600 mt-2">Linked Accounts Demo</span>
       </h1>
       <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-        Experience seamless social interactions powered by Coinbase&apos;s Smart Wallet technology. 
-        Connect, share, and engage with your network using web3 capabilities.
+      Browse trending Farcaster posts and support creators with tips
       </p>
     </div>
   );
