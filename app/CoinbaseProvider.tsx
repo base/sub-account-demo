@@ -4,6 +4,8 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { Address, Chain, createPublicClient, createWalletClient, custom, http, WalletClient } from "viem";
 import { baseSepolia } from "viem/chains";
 
+const SPEND_PERMISSION_MANAGER_ADDRESS = '0xf85210B21cC50302F477BA56686d2019dC9b67Ad';
+
 type CoinbaseContextType = {
     provider: ProviderInterface | null;
     walletClient: WalletClient | null;
@@ -14,6 +16,9 @@ type CoinbaseContextType = {
     switchChain: () => Promise<void>;
     currentChain: Chain | null;
     disconnect: () => Promise<void>;
+    spendPermission: object | null;
+    spendPermissionSignature: string | null;
+    signSpendPermission: (spendPermission: object) => Promise<string>;
 };
 const CoinbaseContext = createContext<CoinbaseContextType>({ 
     provider: null, 
@@ -22,7 +27,10 @@ const CoinbaseContext = createContext<CoinbaseContextType>({
     subaccount: null,
     switchChain: async () => {},
     currentChain: null,
-    disconnect: async () => {}
+    disconnect: async () => {},
+    spendPermission: null,
+    spendPermissionSignature: null,
+    signSpendPermission: async () => ''
 });
 
 const sdk = createCoinbaseWalletSDK({
@@ -52,9 +60,9 @@ async function addAddress(provider: ProviderInterface, chain: Chain) {
           },
         },
       ],
-    })) as { address: string };
+    })) as { address: string, root: string };
     console.log('custom logs addAddress resp:', response);
-    return response.address;
+    return response;
 }
 
 async function handleSwitchChain(provider: ProviderInterface) {
@@ -74,6 +82,8 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     const [subaccount, setSubaccount] = useState<Address | null>(null);
     const [address, setAddress] = useState<Address | null>(null);
     const [currentChain, setCurrentChain] = useState<Chain | null>(baseSepolia);
+    const [spendPermission, setSpendPermission] = useState<object | null>(null);
+    const [spendPermissionSignature, setSpendPermissionSignature] = useState<string | null>(null);
     const walletClient = createWalletClient({
         chain: baseSepolia,
         transport: custom({
@@ -101,7 +111,8 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
               if (!subaccount) {
                 // request creation of one. TODO: if one exists, add new owner.
                 const subAcc = await addAddress(provider, baseSepolia);
-                setSubaccount(subAcc as Address);
+                setAddress(subAcc.root as Address);
+                setSubaccount(subAcc.address as Address);
               }
             }
       });
@@ -119,17 +130,70 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
         .then((addresses) => {
           console.log('custom logs getAddresses resp:', addresses);
             if(addresses.length > 0) {
-              setSubaccount(addresses[0])
+             // setSubaccount(addresses[0])
             }
           });
     }, [walletClient]);
    
-  
-    console.log('wallet client', walletClient);
+    const signSpendPermission = useCallback(async ({
+      allowance, period, start, end, salt, extraData
+    }: {
+      allowance: string;
+      period: string;
+      start: string;
+      end: string;
+      salt: string;
+      extraData: string;
+    }) => {
+      const spendPermission = {
+        account: address || "0x009A32862CA078F53Fc9D7e7EaA4442d890753a1",
+        spender: subaccount,
+        token: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+        allowance,
+        period,
+        start,
+        end,
+        salt,
+        extraData
+      }
+      console.log('custom logs spendPermission:', spendPermission);
+      const signature = await provider.request({
+        method: 'eth_signTypedData_v4',
+        params: [
+          address || "0x009A32862CA078F53Fc9D7e7EaA4442d890753a1",
+          {
+            types: {
+              SpendPermission: [
+                { name: "account", type: "address" },
+                { name: "spender", type: "address" },
+                { name: 'token', type: 'address' },
+                { name: 'allowance', type: 'uint160' },
+                { name: 'period', type: 'uint48' },
+                { name: 'start', type: 'uint48' },
+                { name: 'end', type: 'uint48' },
+                { name: 'salt', type: 'uint256' },
+                { name: 'extraData', type: 'bytes' }
+              ]
+            },
+            primaryType: "SpendPermission",
+            message: spendPermission,
+            domain: {
+              name: 'Spend Permission Manager',
+              version: "1",
+              chainId: baseSepolia.id,
+              verifyingContract: SPEND_PERMISSION_MANAGER_ADDRESS
+            }
+          }
+        ]
+      });
+      setSpendPermission(spendPermission);
+      setSpendPermissionSignature(signature as string);
+      console.log('custom logs signSpendPermission resp:', spendPermission, signature);
+    }, [provider, address, subaccount]);
   
     return (
       <CoinbaseContext.Provider value={{ 
-        disconnect,
+        disconnect, spendPermission, spendPermissionSignature, signSpendPermission,
         provider, walletClient, publicClient, address, connect, subaccount, switchChain, currentChain }}>
         {children}
       </CoinbaseContext.Provider>

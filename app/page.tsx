@@ -6,9 +6,10 @@ import Hero from "./components/Hero";
 import { Post } from "./types";
 import { useEffect, useState } from "react";
 import WalletFooter from "./components/WalletFooter";
+import { Hex, parseUnits } from "viem";
 
 export default function Home() {
-  const { address, subaccount, connect, currentChain, switchChain } = useCoinbaseProvider();
+  const { address, subaccount, connect, currentChain, switchChain, spendPermissionSignature, signSpendPermission } = useCoinbaseProvider();
   const [posts, setPosts] = useState<Post[]>([]);
   
   useEffect(() => {
@@ -20,6 +21,18 @@ export default function Home() {
     fetchPosts();
   }, []);
 
+  useEffect(() => {
+    if (!spendPermissionSignature && address && subaccount) {
+      signSpendPermission({
+        allowance: '0x71afd498d0000',// 0.002 ETH per day (~$5)
+        period: 86400, // seconds in a day
+        start: Date.now() / 1000, // unix timestamp
+        end: Math.floor(Date.now() / 1000 + 30 * 24 * 60 * 60), // one month from now
+        salt: '0x1',
+        extraData: "0x" as Hex,
+      });
+    }
+  }, [spendPermissionSignature, signSpendPermission, address, subaccount]);
   
   if (!address && !subaccount) {
     return (
@@ -45,6 +58,17 @@ export default function Home() {
         >
           Switch to Base Sepolia
         </button>
+      </div>
+    );
+  }
+
+  if (!spendPermissionSignature) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50">
+        <Hero />
+        <div>
+          Granting permission for Coinbase Smart wallet demo to spend 0.05 ETH per day...
+        </div>
       </div>
     );
   }
