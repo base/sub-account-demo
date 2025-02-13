@@ -4,6 +4,7 @@ import { useCoinbaseProvider } from "./CoinbaseProvider";
 import PostCard from "./components/PostCard";
 import Hero from "./components/Hero";
 import { Post } from "./types";
+import { useEffect, useState } from "react";
 
 const mockPosts: Post[] = [
   {
@@ -45,7 +46,18 @@ const mockPosts: Post[] = [
 
 export default function Home() {
   const { address, connect, currentChain, switchChain } = useCoinbaseProvider();
+  const [posts, setPosts] = useState<Post[]>([]);
+  
+  useEffect(() => {
+    const fetchPosts = async () => {
+      const response = await fetch('/api/posts');
+      const data = await response.json();
+      setPosts(data.posts);
+    };
+    fetchPosts();
+  }, []);
 
+  
   if (!address) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50">
@@ -79,7 +91,7 @@ export default function Home() {
     <div>
       <Hero />
       <div className="max-w-2xl mx-auto py-8 px-4">
-        {mockPosts.map((post) => (
+        {posts.map((post) => (
           <PostCard key={post.id} post={post} />
         ))}
       </div>
