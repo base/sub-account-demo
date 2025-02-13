@@ -26,7 +26,7 @@ export default function Home() {
       signSpendPermission({
         allowance: '0x71afd498d0000',// 0.002 ETH per day (~$5)
         period: 86400, // seconds in a day
-        start: Date.now() / 1000, // unix timestamp
+        start: Math.floor(Date.now() / 1000), // unix timestamp
         end: Math.floor(Date.now() / 1000 + 30 * 24 * 60 * 60), // one month from now
         salt: '0x1',
         extraData: "0x" as Hex,

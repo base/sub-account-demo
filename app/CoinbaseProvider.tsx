@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { Address, Chain, createPublicClient, createWalletClient, custom, http, WalletClient } from "viem";
 import { baseSepolia } from "viem/chains";
 
-const SPEND_PERMISSION_MANAGER_ADDRESS = '0xf85210B21cC50302F477BA56686d2019dC9b67Ad';
+export const SPEND_PERMISSION_MANAGER_ADDRESS = '0xf85210B21cC50302F477BA56686d2019dC9b67Ad';
 
 type CoinbaseContextType = {
     provider: ProviderInterface | null;
@@ -146,7 +146,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       extraData: string;
     }) => {
       const spendPermission = {
-        account: address || "0x009A32862CA078F53Fc9D7e7EaA4442d890753a1",
+        account: address,
         spender: subaccount,
         token: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
         allowance,

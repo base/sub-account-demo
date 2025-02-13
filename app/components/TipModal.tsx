@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Address } from 'viem';
-import { useCoinbaseProvider } from '../CoinbaseProvider';
+import { SPEND_PERMISSION_MANAGER_ADDRESS, useCoinbaseProvider } from '../CoinbaseProvider';
 import { useEthUsdPrice } from '../hooks/useEthUsdPrice';
+import { spendPermissionManagerAbi } from '../abi';
 
 interface TipModalProps {
   isOpen: boolean;
@@ -24,7 +25,7 @@ export default function TipModal({
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const predefinedTips = [1, 5, 20, 50];
-  const { provider, currentChain } = useCoinbaseProvider();
+  const { provider, currentChain, spendPermissionSignature, spendPermission } = useCoinbaseProvider();
   const [isLoading, setIsLoading] = useState(false);
   const {ethUsdPrice} = useEthUsdPrice();
   
@@ -54,6 +55,18 @@ export default function TipModal({
                 {
                     chainId: currentChain.id,
                     calls: [
+                        {
+                            to: SPEND_PERMISSION_MANAGER_ADDRESS,
+                            abi: spendPermissionManagerAbi,
+                            functionName: 'approveWithSignature',
+                            args: [spendPermission, spendPermissionSignature]
+                        },
+                        {
+                            to: SPEND_PERMISSION_MANAGER_ADDRESS,
+                            abi: spendPermissionManagerAbi,
+                            functionName: 'spend',
+                            args: [spendPermission, tipAmountWei]
+                        },
                         {
                             to: recipientAddress,
                             data: '0x',
