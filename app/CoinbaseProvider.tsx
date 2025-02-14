@@ -5,6 +5,7 @@ import { Address, Chain, createPublicClient, createWalletClient, custom, encodeF
 import { baseSepolia } from "viem/chains";
 import { spendPermissionManagerAbi } from "./abi";
 import { SpendPermission } from "./types";
+import { clearObjectStore } from "./utils/clearIndexDB";
 
 export const SPEND_PERMISSION_MANAGER_ADDRESS = '0xf85210B21cC50302F477BA56686d2019dC9b67Ad';
 
@@ -153,6 +154,13 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       localStorage.clear();
       // Clear IndexedDB
       //clearObjectStore()
+      const indexDbReq = indexedDB.open('cbwsdk', 1);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      indexDbReq.onsuccess = (event: any) => {
+        const db = event.target.result;
+        clearObjectStore(db, 'keys');
+      }
+
   }, [provider]);
   
     useEffect(() => {
@@ -213,7 +221,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       const signature = await provider.request({
         method: 'eth_signTypedData_v4',
         params: [
-          address || "0x009A32862CA078F53Fc9D7e7EaA4442d890753a1",
+          address,
           {
             types: {
               SpendPermission: [
