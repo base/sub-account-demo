@@ -20,9 +20,9 @@ export default function PostCard({ post }: { post: Post }) {
     const tipAmountEth = DEFAULT_TIP_USD / (ethUsdPrice || 2500); // fallback price if not loaded
     const tipAmountWei = BigInt(Math.floor(tipAmountEth * 1e18));
     
-    const toastId = toast.loading(
+    const toastId = toast(
       (t) => (
-        <div>
+        <div className="relative">
           <div>Sending 10¢ tip to @{post.author.username}</div>
           <button
             onClick={() => {
@@ -30,13 +30,32 @@ export default function PostCard({ post }: { post: Post }) {
               toast.dismiss(t.id);
               toast.error('Tip cancelled');
             }}
-            className="mt-2 bg-red-500 text-white px-2 py-1 rounded text-sm"
+            className="mt-2 mb-3 bg-red-500 text-white px-2 py-1 rounded text-sm"
           >
             Cancel
           </button>
+          <div className="absolute bottom-0 left-0 w-full h-1 bg-gray-200 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-blue-500 rounded-full"
+              style={{
+                animation: 'shrinkProgress 4s linear forwards',
+                transformOrigin: 'left',
+              }}
+            />
+          </div>
+          <style jsx>{`
+            @keyframes shrinkProgress {
+              from {
+                width: 100%;
+              }
+              to {
+                width: 0%;
+              }
+            }
+          `}</style>
         </div>
       ),
-      { duration: 5000 }
+      { duration: 4000 }
     );
 
     activeTipToasts.add(toastId);
