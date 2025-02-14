@@ -146,6 +146,13 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       provider.disconnect();
       setAddress(null);
       setSubaccount(null);
+      setSpendPermission(null);
+      setSpendPermissionSignature(null);
+      setRemainingSpend(null);
+      setPeriodSpend(null);
+      localStorage.clear();
+      // Clear IndexedDB
+      //clearObjectStore()
   }, [provider]);
   
     useEffect(() => {

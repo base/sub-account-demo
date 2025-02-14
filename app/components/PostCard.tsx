@@ -7,7 +7,13 @@ import { useEthUsdPrice } from '../hooks/useEthUsdPrice';
 
 const activeTipToasts = new Set<string>();
 
-export default function PostCard({ post }: { post: Post }) {
+interface PostCardProps {
+  post: Post;
+  isTipping: boolean;
+  setIsTipping: (isTipping: boolean) => void;
+}
+
+export default function PostCard({ post, isTipping, setIsTipping }: PostCardProps) {
   const [showTipModal, setShowTipModal] = useState(false);
   const { sendCallWithSpendPermission, currentChain } = useCoinbaseProvider();
   const { ethUsdPrice } = useEthUsdPrice();
@@ -15,6 +21,9 @@ export default function PostCard({ post }: { post: Post }) {
   // Example balance - you'll need to replace this with actual user balance from your app state
 
   const handleQuickTip = async () => {
+    if (isTipping) return;
+    setIsTipping(true);
+    
     const DEFAULT_TIP_USD = 0.1; // $1 tip
     
     const tipAmountEth = DEFAULT_TIP_USD / (ethUsdPrice || 2500); // fallback price if not loaded
@@ -61,7 +70,10 @@ export default function PostCard({ post }: { post: Post }) {
     activeTipToasts.add(toastId);
 
     setTimeout(async () => {
-      if (!activeTipToasts.has(toastId)) return;
+      if (!activeTipToasts.has(toastId)) {
+        setIsTipping(false);
+        return;
+      }
       activeTipToasts.delete(toastId);
       
       try {
@@ -96,6 +108,8 @@ export default function PostCard({ post }: { post: Post }) {
       } catch (error) {
         toast.error('Failed to send tip');
         console.error('Tip error:', error);
+      } finally {
+        setIsTipping(false);
       }
     }, 4000);
   };
@@ -174,14 +188,15 @@ export default function PostCard({ post }: { post: Post }) {
             </button>
             
             <button 
-              className="flex items-center space-x-2 hover:text-yellow-500 cursor-pointer"
+              className={`flex items-center space-x-2 hover:text-yellow-500 ${isTipping ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               onClick={handleQuickTip}
               onDoubleClick={() => setShowTipModal(true)}
+              disabled={isTipping}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span>Tip (10¢)</span>
+              <span>{isTipping ? 'Tipping...' : 'Tip (10¢)'}</span>
             </button>
           </div>
         </div>

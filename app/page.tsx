@@ -12,6 +12,7 @@ import { Toaster } from 'react-hot-toast';
 export default function Home() {
   const { address, subaccount, connect, currentChain, switchChain, spendPermissionSignature, signSpendPermission } = useCoinbaseProvider();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [isTipping, setIsTipping] = useState(false);
   
   useEffect(() => {
     const fetchPosts = async () => {
@@ -68,7 +69,7 @@ export default function Home() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50">
         <Hero />
         <div>
-          Granting permission for Coinbase Smart wallet demo to spend 0.05 ETH per day...
+          Granting permission for Coinbase Smart wallet demo to spend 0.002 ETH per day...
         </div>
         <button 
           onClick={() => signSpendPermission({
@@ -93,7 +94,12 @@ export default function Home() {
       <Hero />
       <div className="max-w-2xl mx-auto py-8 px-4">
         {posts.map((post) => (
-          <PostCard key={post.id} post={post} />
+          <PostCard 
+            key={post.id} 
+            post={post} 
+            isTipping={isTipping}
+            setIsTipping={setIsTipping}
+          />
         ))}
       </div>
       <WalletFooter />
