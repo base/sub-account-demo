@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Address } from 'viem';
-import { SPEND_PERMISSION_MANAGER_ADDRESS, useCoinbaseProvider } from '../CoinbaseProvider';
+import { useCoinbaseProvider } from '../CoinbaseProvider';
 import { useEthUsdPrice } from '../hooks/useEthUsdPrice';
-import { spendPermissionManagerAbi } from '../abi';
 
 interface TipModalProps {
   isOpen: boolean;

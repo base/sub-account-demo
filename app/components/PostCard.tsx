@@ -78,7 +78,7 @@ export default function PostCard({ post }: { post: Post }) {
         toast.error('Failed to send tip');
         console.error('Tip error:', error);
       }
-    }, 5000);
+    }, 4000);
   };
 
   return (
