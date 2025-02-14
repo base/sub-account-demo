@@ -234,6 +234,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       });
       setSpendPermission(spendPermission);
       setSpendPermissionSignature(signature as string);
+      console.log('custom logs spendPermissionSignature:', signature);
       localStorage.setItem('cbsw-demo-spendPermissions', JSON.stringify(spendPermission));
       localStorage.setItem('cbsw-demo-spendPermissions-signature', signature as string);
     }, [provider, address, subaccount]);
@@ -259,27 +260,32 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
 
     const sendCallWithSpendPermission = useCallback(async (calls: any[], txValueWei: bigint): Promise<string> => {
       if (!provider) return '';
+
+      const batchCalls =[
+        {
+          to: SPEND_PERMISSION_MANAGER_ADDRESS,
+          abi: spendPermissionManagerAbi,
+          functionName: 'approveWithSignature',
+          args: [spendPermission, spendPermissionSignature]
+      },
+      {
+          to: SPEND_PERMISSION_MANAGER_ADDRESS,
+          abi: spendPermissionManagerAbi,
+          functionName: 'spend',
+          args: [spendPermission, txValueWei]
+      },
+       ...calls
+      ];
+
+      console.log('custom logs, sendCallWithSpendPermission, spendPermissionSignature:', spendPermissionSignature
+        , 'spendPermission:', spendPermission, 'txValueWei:', txValueWei, 'calls:', batchCalls
+      );
       const response = await provider.request({
         method: 'wallet_sendCalls',
         params: [
           {
             chainId: currentChain?.id,
-            calls: [
-                {
-                  to: SPEND_PERMISSION_MANAGER_ADDRESS,
-                  abi: spendPermissionManagerAbi,
-                  functionName: 'approveWithSignature',
-                  args: [spendPermission, spendPermissionSignature]
-              },
-              {
-                  to: SPEND_PERMISSION_MANAGER_ADDRESS,
-                  abi: spendPermissionManagerAbi,
-                  functionName: 'spend',
-                  args: [spendPermission, txValueWei]
-              },
-               ...calls
-
-            ],
+            calls: batchCalls,
             version: '1',
             capabilities: {
                 paymasterService: {
@@ -291,7 +297,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       
       await refreshPeriodSpend();
       return response as string;
-    }, [provider, spendPermissionSignature, spendPermission, currentChain, publicClient]);
+    }, [provider, spendPermissionSignature, spendPermission, currentChain, refreshPeriodSpend]);
 
     return (
       <CoinbaseContext.Provider value={{ 
