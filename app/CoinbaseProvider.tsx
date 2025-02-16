@@ -1,7 +1,7 @@
 'use client';
 import { createCoinbaseWalletSDK, getCryptoKeyAccount, ProviderInterface } from "@coinbase/wallet-sdk";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Address, Chain, createPublicClient, createWalletClient, custom, encodeFunctionData, fromHex, http, WalletClient } from "viem";
+import { Address, Chain, createPublicClient, createWalletClient, custom, fromHex, http, WalletClient } from "viem";
 import { baseSepolia } from "viem/chains";
 import { spendPermissionManagerAbi } from "./abi";
 import { SpendPermission } from "./types";
@@ -23,7 +23,7 @@ type CoinbaseContextType = {
     spendPermissionSignature: string | null;
     signSpendPermission: (spendPermission: SpendPermission) => Promise<string>;
     sendCallWithSpendPermission: (calls: any[], txValueWei: bigint) => Promise<string>;
-    remainingSpend: BigInt | null;
+    remainingSpend: bigint | null;
 };
 const CoinbaseContext = createContext<CoinbaseContextType>({ 
     provider: null, 
@@ -61,7 +61,7 @@ async function addAddress(provider: ProviderInterface, chain: Chain) {
 }
 
 async function handleSwitchChain(provider: ProviderInterface) {
-    const response = await provider.request({
+    await provider.request({
         method: 'wallet_switchEthereumChain',
         params: [
           {
@@ -74,18 +74,18 @@ async function handleSwitchChain(provider: ProviderInterface) {
 type PeriodSpend = {
   start: number;
   end: number;
-  spend: BigInt;
+  spend: bigint;
 }
 
 export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     const [provider, setProvider] = useState<ProviderInterface | null>(null);
     const [subaccount, setSubaccount] = useState<Address | null>(null);
     const [address, setAddress] = useState<Address | null>(null);
-    const [currentChain, setCurrentChain] = useState<Chain | null>(baseSepolia);
+    const [currentChain] = useState<Chain | null>(baseSepolia);
     const [spendPermission, setSpendPermission] = useState<SpendPermission | null>(null);
     const [spendPermissionSignature, setSpendPermissionSignature] = useState<string | null>(null);
-    const [periodSpend, setPeriodSpend] = useState<PeriodSpend | null>(null);
-    const [remainingSpend, setRemainingSpend] = useState<BigInt | null>(fromHex('0x71afd498d0000', 'bigint'));
+    const [setPeriodSpend] = useState<PeriodSpend | null>(null);
+    const [remainingSpend, setRemainingSpend] = useState<bigint | null>(fromHex('0x71afd498d0000', 'bigint'));
 
   useEffect(() => {
     const sdk = createCoinbaseWalletSDK({
@@ -163,7 +163,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
 
   }, [provider]);
   
-    useEffect(() => {
+    /*useEffect(() => {
       if (!walletClient) return;
       walletClient
         .getAddresses()
@@ -173,7 +173,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
              // setSubaccount(addresses[0])
             }
           });
-    }, [walletClient]);
+    }, [walletClient]);*/
 
     useEffect(() => {
       const initSpendPermissionsFromStore = async () => {
