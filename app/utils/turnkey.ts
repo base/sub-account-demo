@@ -23,7 +23,6 @@ export async function getTurnkeyAccount() {
         address: address as Hex,
         type: 'local',
         sign: async ({ hash }): Promise<Hex> => {
-            console.log('address', address);
             const resp: Response = await fetch('/api/wallets/sign', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -32,13 +31,10 @@ export async function getTurnkeyAccount() {
                     signerType: 'turnkey',
                 }),
             });
-            console.log('signMessage response', resp);
             const data = await resp.json();
             return data.signature as Hex;
         },
         signMessage: async ({ message}): Promise<Hex> => {
-            console.log('address', address);
-
             const resp: Response = await fetch('/api/wallets/sign', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -47,7 +43,6 @@ export async function getTurnkeyAccount() {
                     signerType: 'turnkey',
                 }),
             });
-            console.log('signMessage response', resp);
             const data = await resp.json();
             return data.signature as Hex;
         },
