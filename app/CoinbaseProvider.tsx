@@ -4,8 +4,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { Address, Chain, createPublicClient, createWalletClient, custom, fromHex, http, WalletClient } from "viem";
 import { baseSepolia } from "viem/chains";
 import { spendPermissionManagerAbi } from "./abi";
-import { SpendPermission } from "./types";
+import { SignerType, SpendPermission } from "./types";
 import { clearObjectStore } from "./utils/clearIndexDB";
+import { getTurnkeyAccount } from "./utils/turnkey";
 
 export const SPEND_PERMISSION_MANAGER_ADDRESS = '0xf85210B21cC50302F477BA56686d2019dC9b67Ad';
 
@@ -24,6 +25,8 @@ type CoinbaseContextType = {
     signSpendPermission: (spendPermission: SpendPermission) => Promise<string>;
     sendCallWithSpendPermission: (calls: any[], txValueWei: bigint) => Promise<string>;
     remainingSpend: bigint | null;
+    signerType: SignerType;
+    setSignerType: (signerType: SignerType) => void;
 };
 const CoinbaseContext = createContext<CoinbaseContextType>({ 
     provider: null, 
@@ -37,11 +40,28 @@ const CoinbaseContext = createContext<CoinbaseContextType>({
     spendPermissionSignature: null,
     signSpendPermission: async () => '',
     sendCallWithSpendPermission: async () => '',
-    remainingSpend: null
+    remainingSpend: null,
+    signerType: 'browser',
+    setSignerType: () => {}
 });
 
-async function addAddress(provider: ProviderInterface, chain: Chain) {
-    const account = await getCryptoKeyAccount();
+async function addAddress(provider: ProviderInterface, chain: Chain, signerType: SignerType) {
+  const signerFunc = getSignerFunc(signerType);
+  if (!signerFunc) {
+    throw new Error('signerFunc is required');
+  }
+  const account = await signerFunc();
+  if (!account) {
+    throw new Error('account is required');
+  }
+  let signer;
+  if (signerType === 'browser') {
+    signer = account.publicKey;
+  } else if (signerType === 'privy') {
+    signer = account.address;
+  } else if (signerType === 'turnkey') {
+    signer = account.address;
+  }
     const response = (await provider.request({
       method: 'wallet_addAddress',
       params: [
@@ -50,7 +70,7 @@ async function addAddress(provider: ProviderInterface, chain: Chain) {
           chainId: chain.id,
           capabilities: {
             createAccount: {
-              signer: account.publicKey,
+              signer,
             },
           },
         },
@@ -77,6 +97,27 @@ type PeriodSpend = {
   spend: bigint;
 }
 
+const getSignerFunc = (signerType: SignerType) => {
+  if (signerType === 'browser') {
+    return getCryptoKeyAccount;
+  } else if (signerType === 'privy') {
+    throw new Error('Not implemented')
+  } else if (signerType === 'turnkey') {
+    return getTurnkeyAccount;
+  }
+}
+
+const clearCache = () => {
+  localStorage.clear();
+  // Clear IndexedDB
+  const indexDbReq = indexedDB.open('cbwsdk', 1);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  indexDbReq.onsuccess = (event: any) => {
+    const db = event.target.result;
+    clearObjectStore(db, 'keys');
+  }
+}
+
 export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     const [provider, setProvider] = useState<ProviderInterface | null>(null);
     const [subaccount, setSubaccount] = useState<Address | null>(null);
@@ -84,10 +125,16 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     const [currentChain] = useState<Chain | null>(baseSepolia);
     const [spendPermission, setSpendPermission] = useState<SpendPermission | null>(null);
     const [spendPermissionSignature, setSpendPermissionSignature] = useState<string | null>(null);
-    const [setPeriodSpend] = useState<PeriodSpend | null>(null);
+    const [,setPeriodSpend] = useState<PeriodSpend | null>(null);
     const [remainingSpend, setRemainingSpend] = useState<bigint | null>(fromHex('0x71afd498d0000', 'bigint'));
 
+    const [signerType, setSignerType] = useState<SignerType>(
+        () => (localStorage.getItem('cbsw-demo-cachedSignerType') as SignerType) || 'browser'
+    );
+
+
   useEffect(() => {
+    console.log('init sdk with signer type', signerType);
     const sdk = createCoinbaseWalletSDK({
       appName: 'Coinbase Wallet demo',
       appChainIds: [baseSepolia.id],
@@ -96,11 +143,11 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
         keysUrl: 'https://keys-dev.coinbase.com/connect',
       },
       subaccount: {
-        getSigner: getCryptoKeyAccount
+        getSigner: getSignerFunc(signerType)
       }
     });
     setProvider(sdk.getProvider());
-  }, []);
+  }, [signerType]);
 
     const walletClient = useMemo(() => {
       if (!provider) return null;
@@ -126,7 +173,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     }, [provider]);
   
     const connect = useCallback(async () => {
-      if (!walletClient || !provider) return;
+      if (!walletClient || !provider || !signerType) return;
       walletClient
         .requestAddresses()
         .then(async (addresses) => {
@@ -134,13 +181,13 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
               setAddress(addresses[0])
               if (!subaccount) {
                 // request creation of one. TODO: if one exists, add new owner.
-                const subAcc = await addAddress(provider, baseSepolia);
+                const subAcc = await addAddress(provider, baseSepolia, signerType);
                 setAddress(subAcc.root as Address);
                 setSubaccount(subAcc.address as Address);
               }
             }
       });
-    }, [walletClient, setSubaccount, provider, subaccount]);
+    }, [walletClient, setSubaccount, provider, subaccount, signerType]);
 
     const disconnect = useCallback(async () => {
       if (!provider) return;
@@ -151,16 +198,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       setSpendPermissionSignature(null);
       setRemainingSpend(null);
       setPeriodSpend(null);
-      localStorage.clear();
-      // Clear IndexedDB
-      //clearObjectStore()
-      const indexDbReq = indexedDB.open('cbwsdk', 1);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      indexDbReq.onsuccess = (event: any) => {
-        const db = event.target.result;
-        clearObjectStore(db, 'keys');
-      }
-
+      clearCache();
   }, [provider]);
   
     /*useEffect(() => {
@@ -271,7 +309,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error('custom logs refreshPeriodSpend error:', error);
       }
-    }, [spendPermission, publicClient]);
+    }, [spendPermission, publicClient, setPeriodSpend]);
 
     const sendCallWithSpendPermission = useCallback(async (calls: any[], txValueWei: bigint): Promise<string> => {
       if (!provider) return '';
@@ -314,11 +352,19 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       return response as string;
     }, [provider, spendPermissionSignature, spendPermission, currentChain, refreshPeriodSpend]);
 
+    const wrappedSetSignerType = useCallback((newSignerType: SignerType) => {
+      if (signerType !== newSignerType) {
+        clearCache();
+        setSignerType(newSignerType);
+        localStorage.setItem('cbsw-demo-cachedSignerType', newSignerType);
+      }
+    }, [setSignerType, signerType]);
+
     return (
       <CoinbaseContext.Provider value={{ 
         disconnect, spendPermission, spendPermissionSignature, signSpendPermission, sendCallWithSpendPermission,
         remainingSpend,
-        provider, walletClient, publicClient, address, connect, subaccount, switchChain, currentChain }}>
+        provider, walletClient, publicClient, address, connect, subaccount, switchChain, currentChain, signerType, setSignerType: wrappedSetSignerType }}>
         {children}
       </CoinbaseContext.Provider>
     );

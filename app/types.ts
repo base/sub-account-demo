@@ -43,3 +43,5 @@ export interface Post {
     extraData: string;
   };
   
+
+  export type SignerType = 'browser' | 'privy' | 'turnkey';
