@@ -60,7 +60,7 @@ async function addAddress(provider: ProviderInterface, chain: Chain, signerType:
   }
   let signer;
   if (signerType === 'browser') {
-    signer = account.publicKey;
+    signer = account.account.publicKey;
   } else if (signerType === 'privy') {
     signer = account.address;
   } else if (signerType === 'turnkey') {
@@ -327,13 +327,15 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
           to: SPEND_PERMISSION_MANAGER_ADDRESS,
           abi: spendPermissionManagerAbi,
           functionName: 'approveWithSignature',
-          args: [spendPermission, spendPermissionSignature]
+          args: [spendPermission, spendPermissionSignature],
+          data: '0x',
       },
       {
           to: SPEND_PERMISSION_MANAGER_ADDRESS,
           abi: spendPermissionManagerAbi,
           functionName: 'spend',
-          args: [spendPermission, txValueWei]
+          args: [spendPermission, txValueWei.toString()],
+          data: '0x',
       },
        ...calls
       ];
@@ -347,6 +349,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
           {
             chainId: currentChain?.id,
             calls: batchCalls,
+            from: subaccount,
             version: '1',
             capabilities: {
                 paymasterService: {
@@ -358,7 +361,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       
       await refreshPeriodSpend();
       return response as string;
-    }, [provider, spendPermissionSignature, spendPermission, currentChain, refreshPeriodSpend]);
+    }, [provider, spendPermissionSignature, spendPermission, currentChain, refreshPeriodSpend, subaccount]);
 
     const wrappedSetSignerType = useCallback((newSignerType: SignerType) => {
       if (signerType !== newSignerType) {

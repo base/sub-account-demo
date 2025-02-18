@@ -81,7 +81,7 @@ export default function PostCard({ post, isTipping, setIsTipping }: PostCardProp
           {
             to: (post.author.verified_addresses.eth_addresses[0] || post.author.custody_address) as `0x${string}`,
             data: '0x',
-            value: tipAmountWei,
+            value: tipAmountWei.toString(),
           }
         ], tipAmountWei);
 

@@ -51,9 +51,9 @@
     eventemitter3 "^5.0.1"
     preact "^10.24.2"
 
-"@coinbase/wallet-sdk@file:./coinbase-wallet-sdk-4.4.0-canary.2.tgz":
-  version "4.4.0-canary.2"
-  resolved "file:./coinbase-wallet-sdk-4.4.0-canary.2.tgz#c7a1a93afa1d9d98a73c8cdf93332e89987b9efe"
+"@coinbase/wallet-sdk@file:./coinbase-wallet-sdk-4.4.0-alpha.3.tgz":
+  version "4.4.0-alpha.3"
+  resolved "file:./coinbase-wallet-sdk-4.4.0-alpha.3.tgz#963cd0ff4b859076c0d21e61939d4acee319b10c"
   dependencies:
     "@noble/hashes" "^1.4.0"
     clsx "^1.2.1"
