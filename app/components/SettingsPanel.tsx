@@ -40,7 +40,7 @@ export default function SettingsPanel({ isLoggedIn, isMobile, onClose }: Setting
                 focus:border-indigo-500 transition-colors"
             >
               <option value="browser">Browser keys</option>
-              <option value="privy">Privy signer</option>
+              {/* <option value="privy">Privy signer</option> */}
               <option value="turnkey">Turnkey signer</option>
             </select>
           </div>
