@@ -1,9 +1,9 @@
-import { formatEther } from "viem";
+import { formatEther, parseEther, toHex } from "viem";
 import { useCoinbaseProvider } from "../CoinbaseProvider";
 import { useEthUsdPrice } from "../hooks/useEthUsdPrice";
 
 export default function WalletFooter() {
-    const { subaccount, disconnect, currentChain, remainingSpend, signSpendPermission } = useCoinbaseProvider();
+    const { subaccount, disconnect, currentChain, remainingSpend, signSpendPermission, spendPermissionRequestedAllowance } = useCoinbaseProvider();
     const { ethUsdPrice } = useEthUsdPrice();
     if (!subaccount) return null;
 
@@ -50,9 +50,9 @@ export default function WalletFooter() {
           <button 
             onClick={() => {
                 signSpendPermission({
-                    allowance: '0x71afd498d0000',// 0.002 ETH per day (~$5)
+                    allowance: toHex(parseEther(spendPermissionRequestedAllowance)),
                     period: 86400, // seconds in a day
-                    start: Math.floor(Date.now() / 1000), // unix timestamp
+                    start: Math.floor(Date.now() / 1000),
                     end: Math.floor(Date.now() / 1000 + 30 * 24 * 60 * 60), // one month from now
                     salt: '0x1',
                     extraData: "0x" as Hex,

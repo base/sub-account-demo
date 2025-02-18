@@ -27,6 +27,8 @@ type CoinbaseContextType = {
     remainingSpend: bigint | null;
     signerType: SignerType;
     setSignerType: (signerType: SignerType) => void;
+    spendPermissionRequestedAllowance: string;
+    setSpendPermissionRequestedAllowance: (spendPermissionRequestedAllowance: string) => void;
 };
 const CoinbaseContext = createContext<CoinbaseContextType>({ 
     provider: null, 
@@ -42,7 +44,9 @@ const CoinbaseContext = createContext<CoinbaseContextType>({
     sendCallWithSpendPermission: async () => '',
     remainingSpend: null,
     signerType: 'browser',
-    setSignerType: () => {}
+    setSignerType: () => {},
+    spendPermissionRequestedAllowance: '0.002',
+    setSpendPermissionRequestedAllowance: () => {}
 });
 
 async function addAddress(provider: ProviderInterface, chain: Chain, signerType: SignerType) {
@@ -123,31 +127,35 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     const [subaccount, setSubaccount] = useState<Address | null>(null);
     const [address, setAddress] = useState<Address | null>(null);
     const [currentChain] = useState<Chain | null>(baseSepolia);
+    const [spendPermissionRequestedAllowance, setSpendPermissionRequestedAllowance] = useState<string>('0.002');
     const [spendPermission, setSpendPermission] = useState<SpendPermission | null>(null);
     const [spendPermissionSignature, setSpendPermissionSignature] = useState<string | null>(null);
     const [,setPeriodSpend] = useState<PeriodSpend | null>(null);
     const [remainingSpend, setRemainingSpend] = useState<bigint | null>(fromHex('0x71afd498d0000', 'bigint'));
 
-    const [signerType, setSignerType] = useState<SignerType>(
-        () => (localStorage.getItem('cbsw-demo-cachedSignerType') as SignerType) || 'browser'
-    );
+    const [signerType, setSignerType] = useState<SignerType>('browser');
 
+    useEffect(() => {
+        const cachedSignerType = localStorage.getItem('cbsw-demo-cachedSignerType') as SignerType;
+        if (cachedSignerType) {
+            setSignerType(cachedSignerType);
+        }
+    }, []);
 
-  useEffect(() => {
-    console.log('init sdk with signer type', signerType);
-    const sdk = createCoinbaseWalletSDK({
-      appName: 'Coinbase Wallet demo',
-      appChainIds: [baseSepolia.id],
-      preference: {
-        options: "smartWalletOnly",
-        keysUrl: 'https://keys-dev.coinbase.com/connect',
-      },
-      subaccount: {
-        getSigner: getSignerFunc(signerType)
-      }
-    });
-    setProvider(sdk.getProvider());
-  }, [signerType]);
+    useEffect(() => {
+        const sdk = createCoinbaseWalletSDK({
+          appName: 'Coinbase Wallet demo',
+          appChainIds: [baseSepolia.id],
+          preference: {
+            options: "smartWalletOnly",
+            keysUrl: 'https://keys-dev.coinbase.com/connect',
+          },
+          subaccount: {
+            getSigner: getSignerFunc(signerType)
+          }
+        });
+        setProvider(sdk.getProvider());
+    }, [signerType]);
 
     const walletClient = useMemo(() => {
       if (!provider) return null;
@@ -363,7 +371,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     return (
       <CoinbaseContext.Provider value={{ 
         disconnect, spendPermission, spendPermissionSignature, signSpendPermission, sendCallWithSpendPermission,
-        remainingSpend,
+        remainingSpend, spendPermissionRequestedAllowance, setSpendPermissionRequestedAllowance,
         provider, walletClient, publicClient, address, connect, subaccount, switchChain, currentChain, signerType, setSignerType: wrappedSetSignerType }}>
         {children}
       </CoinbaseContext.Provider>

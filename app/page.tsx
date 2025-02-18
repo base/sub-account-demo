@@ -6,13 +6,13 @@ import Hero from "./components/Hero";
 import { Post } from "./types";
 import { useEffect, useState } from "react";
 import WalletFooter from "./components/WalletFooter";
-import { Hex } from "viem";
+import { Hex, parseEther, toHex } from "viem";
 import { Toaster } from 'react-hot-toast';
 import SettingsPanel from "./components/SettingsPanel";
 import { useMediaQuery } from 'react-responsive';
 
 export default function Home() {
-  const { address, subaccount, connect, currentChain, switchChain, spendPermissionSignature, signSpendPermission } = useCoinbaseProvider();
+  const { address, subaccount, connect, currentChain, switchChain, spendPermissionSignature, signSpendPermission, spendPermissionRequestedAllowance } = useCoinbaseProvider();
   const [posts, setPosts] = useState<Post[]>([]);
   const [isTipping, setIsTipping] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -30,17 +30,28 @@ export default function Home() {
   useEffect(() => {
     if (!spendPermissionSignature && address && subaccount) {
       signSpendPermission({
-        allowance: '0x71afd498d0000',// 0.002 ETH per day (~$5)
+        allowance: toHex(parseEther(spendPermissionRequestedAllowance)),
         period: 86400, // seconds in a day
-        start: Math.floor(Date.now() / 1000), // unix timestamp
+        start: Math.floor(Date.now() / 1000),
         end: Math.floor(Date.now() / 1000 + 30 * 24 * 60 * 60), // one month from now
         salt: '0x1',
         extraData: "0x" as Hex,
       });
     }
-  }, [spendPermissionSignature, signSpendPermission, address, subaccount]);
+  }, [spendPermissionSignature, signSpendPermission, address, subaccount, spendPermissionRequestedAllowance]);
   
   const renderContent = () => {
+    if (Number(spendPermissionRequestedAllowance) === 0 || spendPermissionRequestedAllowance === '') {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50">
+          <Hero />
+          <div>
+            Please set a valid daily spend amount in the settings panel.
+          </div>
+        </div>
+      );
+    }
+
     if (!address && !subaccount) {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50">

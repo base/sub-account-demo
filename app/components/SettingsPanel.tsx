@@ -1,4 +1,4 @@
-import { useState } from 'react';
+'use client';
 import { SignerType } from '../types';
 import { useCoinbaseProvider } from '../CoinbaseProvider';
 interface SettingsPanelProps {
@@ -8,8 +8,9 @@ interface SettingsPanelProps {
 }
 
 export default function SettingsPanel({ isLoggedIn, isMobile, onClose }: SettingsPanelProps) {
-  const { signerType, setSignerType } = useCoinbaseProvider();
-  const [dailySpend, setDailySpend] = useState<string>('0.002');
+  const { signerType, setSignerType, spendPermissionRequestedAllowance, setSpendPermissionRequestedAllowance } = useCoinbaseProvider();
+
+
 
   return (
     <div className="h-full bg-gray-50 border-r border-gray-200">
@@ -54,11 +55,14 @@ export default function SettingsPanel({ isLoggedIn, isMobile, onClose }: Setting
               </label>
               <input 
                 type="number"
-                value={dailySpend}
-                onChange={(e) => setDailySpend(e.target.value)}
-                disabled={isLoggedIn}
+                min="0.001"
                 step="0.001"
-                min="0"
+                value={spendPermissionRequestedAllowance}
+                onChange={(e) => {
+                    const value = e.target.value;
+                    setSpendPermissionRequestedAllowance(value);
+                }}
+                disabled={isLoggedIn}
                 className="w-full p-2.5 border border-gray-300 rounded-lg disabled:bg-gray-50 
                   disabled:text-gray-500 disabled:cursor-not-allowed focus:ring-2 
                   focus:ring-indigo-500 focus:border-indigo-500 transition-colors"

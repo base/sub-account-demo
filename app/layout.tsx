@@ -29,7 +29,7 @@ export default function RootLayout({
       >
       <Wrapper>
           {children}
-        </Wrapper>
+      </Wrapper>
       </body>
     </html>
   );
