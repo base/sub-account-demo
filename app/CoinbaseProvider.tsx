@@ -64,7 +64,7 @@ async function addAddress(provider: ProviderInterface, chain: Chain, signerType:
   } else if (signerType === 'privy') {
     signer = account.account.address;
   } else if (signerType === 'turnkey') {
-    signer = account.account.ddress;
+    signer = account.account.address;
   }
     const response = (await provider.request({
       method: 'wallet_addAddress',
