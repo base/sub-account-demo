@@ -34,5 +34,7 @@ export async function getPrivyAccount() {
             throw new Error('Not implemented');
         }
     });
-    return account;
+    return {
+        account,
+    };
 }

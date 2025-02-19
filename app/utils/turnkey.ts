@@ -53,5 +53,7 @@ export async function getTurnkeyAccount() {
             throw new Error('Not implemented');
         }
     });
-    return account;
+    return {
+        account,
+    };
 }
