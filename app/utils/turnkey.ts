@@ -19,7 +19,7 @@ export async function getTurnkeyAccount() {
         localStorage.setItem('cbsw-demo-turnkey-signer', JSON.stringify({ id, address }));
     }
 
-    return toAccount({
+    const account = toAccount({
         address: address as Hex,
         type: 'local',
         sign: async ({ hash }): Promise<Hex> => {
@@ -53,4 +53,5 @@ export async function getTurnkeyAccount() {
             throw new Error('Not implemented');
         }
     });
+    return account;
 }

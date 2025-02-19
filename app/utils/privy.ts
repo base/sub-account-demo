@@ -12,7 +12,7 @@ export async function getPrivyAccount() {
     });
     const createWalletResponseData = await response.json();
 
-    return toAccount({
+    const account = toAccount({
         address: createWalletResponseData.address as Hex,
         signMessage: async ({ message}): Promise<Hex> => {
             const resp: Response = await fetch('/api/wallets/sign', {
@@ -33,5 +33,6 @@ export async function getPrivyAccount() {
         signTypedData: async ({ data }): Promise<Hex> => {
             throw new Error('Not implemented');
         }
-    })
+    });
+    return account;
 }
