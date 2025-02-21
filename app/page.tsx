@@ -4,20 +4,23 @@ import { useCoinbaseProvider } from "./CoinbaseProvider";
 import PostCard from "./components/PostCard";
 import Hero from "./components/Hero";
 import { Post } from "./types";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import WalletFooter from "./components/WalletFooter";
 import { Hex, parseEther, toHex } from "viem";
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import SettingsPanel from "./components/SettingsPanel";
 import { useMediaQuery } from 'react-responsive';
+import disperseFaucet from "./utils/faucet";
 
 export default function Home() {
-  const { address, subaccount, connect, currentChain, switchChain, spendPermissionSignature, signSpendPermission, spendPermissionRequestedAllowance } = useCoinbaseProvider();
+  const { address, subaccount, fetchAddressBalance, publicClient, createLinkedAccount, connect, addressBalanceWei, currentChain, switchChain, spendPermissionSignature, signSpendPermission, spendPermissionRequestedAllowance } = useCoinbaseProvider();
   const [posts, setPosts] = useState<Post[]>([]);
   const [isTipping, setIsTipping] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isFaucetLoading, setIsFaucetLoading] = useState(false);
   const isMobile = useMediaQuery({ maxWidth: 768 });
   
+
   useEffect(() => {
     const fetchPosts = async () => {
       const response = await fetch('/api/posts');
@@ -39,6 +42,20 @@ export default function Home() {
       });
     }
   }, [spendPermissionSignature, signSpendPermission, address, subaccount, spendPermissionRequestedAllowance]);
+
+
+  const isAddressFunded = useMemo(() => {
+    return addressBalanceWei >= parseEther(spendPermissionRequestedAllowance);
+  }, [addressBalanceWei, spendPermissionRequestedAllowance]);
+
+  useEffect(() => {
+    if (address && !subaccount && isAddressFunded) {
+      createLinkedAccount().catch((error) => {
+        console.error('error creating linked account', error);
+      });
+    }
+
+  }, [address, subaccount, isAddressFunded, createLinkedAccount])
   
   const renderContent = () => {
     if (Number(spendPermissionRequestedAllowance) === 0 || spendPermissionRequestedAllowance === '') {
@@ -52,7 +69,7 @@ export default function Home() {
       );
     }
 
-    if (!address && !subaccount) {
+    if (!address) {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50">
           <Hero />
@@ -61,6 +78,36 @@ export default function Home() {
             className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
           >
             Sign in with Coinbase
+          </button>
+        </div>
+      );
+    } else if (!subaccount && !isAddressFunded) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50">
+          <Hero />
+          <div className="text-lg text-gray-700 mb-4 text-center px-6">
+            It doesn&apos;t seem like you have any Base Sepolia ETH 🤔... <br/> Let&apos;s get you funded!
+          </div>
+          <button 
+            onClick={async () => {
+              setIsFaucetLoading(true);
+              try {
+                const { hash } = await disperseFaucet({ to: address });
+                await publicClient.waitForTransactionReceipt({ hash });
+                await fetchAddressBalance();
+              } catch (error) {
+                console.error('error dispersing faucet', error);
+                toast.error('Error dispersing faucet');
+              } finally {
+                setIsFaucetLoading(false);
+              }
+            }}
+            disabled={isFaucetLoading}
+            className={`px-6 py-3 bg-indigo-600 text-white rounded-lg transition-colors ${
+              isFaucetLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'
+            }`}
+          >
+            {isFaucetLoading ? 'Requesting...' : 'Request funds'}
           </button>
         </div>
       );
@@ -84,8 +131,8 @@ export default function Home() {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50">
           <Hero />
-          <div>
-            Granting permission for Coinbase Smart wallet demo to spend 0.002 ETH per day...
+          <div className="text-lg text-gray-700 mb-4 text-center px-6">
+          {`Granting permission for Coinbase Smart wallet demo to spend ${spendPermissionRequestedAllowance} ETH per day...`}
           </div>
           <button 
             onClick={() => signSpendPermission({

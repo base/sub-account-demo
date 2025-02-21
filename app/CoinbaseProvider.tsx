@@ -7,6 +7,7 @@ import { spendPermissionManagerAbi } from "./abi";
 import { SignerType, SpendPermission } from "./types";
 import { clearObjectStore } from "./utils/clearIndexDB";
 import { getTurnkeyAccount } from "./utils/turnkey";
+import { SPEND_PERMISSION_REQUESTED_ALLOWANCE } from "./utils/constants";
 
 export const SPEND_PERMISSION_MANAGER_ADDRESS = '0xf85210B21cC50302F477BA56686d2019dC9b67Ad';
 
@@ -15,6 +16,7 @@ type CoinbaseContextType = {
     walletClient: WalletClient | null;
     publicClient: any | null;
     address: Address | null;
+    addressBalanceWei: bigint;
     connect: () => void;
     subaccount: Address | null;
     switchChain: () => Promise<void>;
@@ -29,10 +31,15 @@ type CoinbaseContextType = {
     setSignerType: (signerType: SignerType) => void;
     spendPermissionRequestedAllowance: string;
     setSpendPermissionRequestedAllowance: (spendPermissionRequestedAllowance: string) => void;
+    createLinkedAccount: () => Promise<void>;
+    fetchAddressBalance: () => Promise<void>;
 };
 const CoinbaseContext = createContext<CoinbaseContextType>({ 
     provider: null, 
-    publicClient: null, walletClient: null, address: null, 
+    publicClient: null, 
+    walletClient: null, 
+    address: null, 
+    addressBalanceWei: BigInt(0),
     connect: () => {},
     subaccount: null,
     switchChain: async () => {},
@@ -46,11 +53,13 @@ const CoinbaseContext = createContext<CoinbaseContextType>({
     signerType: 'browser',
     setSignerType: () => {},
     spendPermissionRequestedAllowance: '0.002',
-    setSpendPermissionRequestedAllowance: () => {}
+    setSpendPermissionRequestedAllowance: () => {},
+    createLinkedAccount: async () => {},
+    fetchAddressBalance: async () => {}
 });
 
 // create sub account and a subsequent spend permission for it.
-async function createLinkedAccount(provider: ProviderInterface,
+async function handleCreateLinkedAccount(provider: ProviderInterface,
   chain: Chain,
   signerType: SignerType,
   address: Address,
@@ -183,13 +192,13 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     const [provider, setProvider] = useState<ProviderInterface | null>(null);
     const [subaccount, setSubaccount] = useState<Address | null>(null);
     const [address, setAddress] = useState<Address | null>(null);
+    const [addressBalanceWei, setAddressBalanceWei] = useState<bigint>(BigInt(0));
     const [currentChain] = useState<Chain | null>(baseSepolia);
-    const [spendPermissionRequestedAllowance, setSpendPermissionRequestedAllowance] = useState<string>('0.002');
+    const [spendPermissionRequestedAllowance, setSpendPermissionRequestedAllowance] = useState<string>(`${SPEND_PERMISSION_REQUESTED_ALLOWANCE}`);
     const [spendPermission, setSpendPermission] = useState<SpendPermission | null>(null);
     const [spendPermissionSignature, setSpendPermissionSignature] = useState<string | null>(null);
     const [,setPeriodSpend] = useState<PeriodSpend | null>(null);
     const [remainingSpend, setRemainingSpend] = useState<bigint | null>(fromHex('0x71afd498d0000', 'bigint'));
-
     const [signerType, setSignerType] = useState<SignerType>('browser');
 
     useEffect(() => {
@@ -244,23 +253,9 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
         .then(async (addresses) => {
             if (addresses.length > 0) {
               setAddress(addresses[0])
-              if (!subaccount) {
-                // request creation of one. TODO: if one exists, add new owner.
-                const createLinkedAccountResp = await createLinkedAccount(provider, baseSepolia, signerType, addresses[0], {
-                  token: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-                  allowance: toHex(parseEther(spendPermissionRequestedAllowance)),
-                  period: 86400,
-                  salt: '0x1',
-                  extraData: '0x' as Hex
-                });
-                console.log('custom logs createLinkedAccount resp:', createLinkedAccountResp);
-                setAddress(createLinkedAccountResp.address as Address);
-                setSubaccount(createLinkedAccountResp.subAccount as Address);
-                setSpendPermissionSignature(createLinkedAccountResp.spendPermissionSignature as string);
-              }
             }
       });
-    }, [walletClient, setSubaccount, provider, subaccount, signerType, spendPermissionRequestedAllowance]);
+    }, [walletClient, provider, signerType]);
 
     const disconnect = useCallback(async () => {
       if (!provider) return;
@@ -273,6 +268,28 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       setPeriodSpend(null);
       clearCache();
   }, [provider]);
+
+  const createLinkedAccount = useCallback(async () => {
+    if (!subaccount && address) {
+
+      if (!provider) {
+        throw new Error('provider is required');
+      }
+
+      // request creation of one. TODO: if one exists, add new owner.
+      const createLinkedAccountResp = await handleCreateLinkedAccount(provider, baseSepolia, signerType, address, {
+        token: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+        allowance: toHex(parseEther(spendPermissionRequestedAllowance)),
+        period: 86400,
+        salt: '0x1',
+        extraData: '0x' as Hex
+      });
+      console.log('custom logs createLinkedAccount resp:', createLinkedAccountResp);
+      setAddress(createLinkedAccountResp.address as Address);
+      setSubaccount(createLinkedAccountResp.subAccount as Address);
+      setSpendPermissionSignature(createLinkedAccountResp.spendPermissionSignature as string);
+    }
+  }, [provider, signerType, address, spendPermissionRequestedAllowance, subaccount]);
   
     /*useEffect(() => {
       if (!walletClient) return;
@@ -436,10 +453,22 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       }
     }, [setSignerType, signerType]);
 
+    const fetchAddressBalance = useCallback(async () => {
+      if (!address) return;
+      const balance = await publicClient.getBalance({ address: address as Address });
+      setAddressBalanceWei(balance);
+    }, [address, publicClient]);
+
+
+    useEffect(() => {
+      fetchAddressBalance();
+    }, [fetchAddressBalance]);
+
     return (
       <CoinbaseContext.Provider value={{ 
         disconnect, spendPermission, spendPermissionSignature, signSpendPermission, sendCallWithSpendPermission,
         remainingSpend, spendPermissionRequestedAllowance, setSpendPermissionRequestedAllowance,
+        fetchAddressBalance, createLinkedAccount, addressBalanceWei,
         provider, walletClient, publicClient, address, connect, subaccount, switchChain, currentChain, signerType, setSignerType: wrappedSetSignerType }}>
         {children}
       </CoinbaseContext.Provider>
