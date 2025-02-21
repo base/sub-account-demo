@@ -51,9 +51,9 @@
     eventemitter3 "^5.0.1"
     preact "^10.24.2"
 
-"@coinbase/wallet-sdk@file:./coinbase-wallet-sdk-4.4.0-alpha.2025-02-19.tgz":
-  version "4.4.0-alpha.2025-02-19"
-  resolved "file:./coinbase-wallet-sdk-4.4.0-alpha.2025-02-19.tgz#6b9fb29b45c9ae988b43cfc85e77f912629be8fd"
+"@coinbase/wallet-sdk@file:./coinbase-wallet-sdk-4.4.0-alpha.2025-02-21.tgz":
+  version "4.4.0-alpha.2025-02-21"
+  resolved "file:./coinbase-wallet-sdk-4.4.0-alpha.2025-02-21.tgz#5e17c7f3f9c077aa8753a50caf7806eff05fd2bd"
   dependencies:
     "@noble/hashes" "1.4.0"
     clsx "1.2.1"
