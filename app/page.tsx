@@ -84,6 +84,7 @@ export default function Home() {
     } else if (!subaccount && !isAddressFunded) {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50">
+          <Toaster position="top-right" />
           <Hero />
           <div className="text-lg text-gray-700 mb-4 text-center px-6">
             It doesn&apos;t seem like you have any Base Sepolia ETH 🤔... <br/> Let&apos;s get you funded!
@@ -97,7 +98,23 @@ export default function Home() {
                 await fetchAddressBalance();
               } catch (error) {
                 console.error('error dispersing faucet', error);
-                toast.error('Error dispersing faucet');
+                toast.error(
+                  <div className="max-w-[280px] break-words">
+                    <p>Error requesting funds. Please try again later. If issues continue to persist, please use the </p>
+                    <a 
+                      href="https://portal.cdp.coinbase.com/products/faucet" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      Coinbase CDP Faucet
+                    </a>
+                    <p className="mt-2">Your wallet address:</p>
+                    <code className="bg-gray-100 px-2 py-1 rounded block overflow-x-auto">{address}</code>
+                  </div>
+                , {
+                  duration: 20000,
+                });
               } finally {
                 setIsFaucetLoading(false);
               }
