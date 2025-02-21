@@ -1,7 +1,7 @@
 'use client';
 import { createCoinbaseWalletSDK, getCryptoKeyAccount, ProviderInterface } from "@coinbase/wallet-sdk";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Address, Chain, createPublicClient, createWalletClient, custom, fromHex, http, WalletClient } from "viem";
+import { Address, Chain, createPublicClient, createWalletClient, custom, fromHex, Hex, http, parseEther, toHex, WalletClient } from "viem";
 import { baseSepolia } from "viem/chains";
 import { spendPermissionManagerAbi } from "./abi";
 import { SignerType, SpendPermission } from "./types";
@@ -48,6 +48,63 @@ const CoinbaseContext = createContext<CoinbaseContextType>({
     spendPermissionRequestedAllowance: '0.002',
     setSpendPermissionRequestedAllowance: () => {}
 });
+
+// create sub account and a subsequent spend permission for it.
+async function createLinkedAccount(provider: ProviderInterface,
+  chain: Chain,
+  signerType: SignerType,
+  address: Address,
+  spendPermissionOps: {
+    token: `0x${string}`,
+    allowance: string;
+    period: number;
+    salt: string;
+    extraData: string;
+  }
+) {
+  const signerFunc = getSignerFunc(signerType);
+  if (!signerFunc) {
+    throw new Error('signerFunc is required');
+  }
+  const account = await signerFunc();
+  if (!account) {
+    throw new Error('account is required');
+  }
+  let signer;
+  if (signerType === 'browser') {
+    signer = account.account.publicKey;
+  } else if (signerType === 'privy') {
+    signer = account.account.address;
+  } else if (signerType === 'turnkey') {
+    signer = account.account.address;
+  }
+  if (!signer) {
+    throw new Error('signer not found');
+  }
+  const response = await provider.request({
+    method: 'wallet_connect',
+    params: [{
+      version: '1',
+      capabilities: {
+        addAddress: {
+          chainId: chain.id,
+          createAccount: {
+            signer,
+          },
+          address
+        },
+        spendPermissions: spendPermissionOps,
+        getSpendPermissions: true,
+      },
+    }],
+  });
+  console.log('custom logs createLinkedAccount resp:', response);
+  return {
+    address: response.accounts[0].capabilities.addAddress.root,
+    subAccount: response.accounts[0].capabilities.addAddress.address,
+    spendPermissionSignature: response.accounts[0].capabilities.spendPermissions,
+  };
+}
 
 async function addAddress(provider: ProviderInterface, chain: Chain, signerType: SignerType) {
   const signerFunc = getSignerFunc(signerType);
@@ -189,13 +246,21 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
               setAddress(addresses[0])
               if (!subaccount) {
                 // request creation of one. TODO: if one exists, add new owner.
-                const subAcc = await addAddress(provider, baseSepolia, signerType);
-                setAddress(subAcc.root as Address);
-                setSubaccount(subAcc.address as Address);
+                const createLinkedAccountResp = await createLinkedAccount(provider, baseSepolia, signerType, addresses[0], {
+                  token: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+                  allowance: toHex(parseEther(spendPermissionRequestedAllowance)),
+                  period: 86400,
+                  salt: '0x1',
+                  extraData: '0x' as Hex
+                });
+                console.log('custom logs createLinkedAccount resp:', createLinkedAccountResp);
+                setAddress(createLinkedAccountResp.address as Address);
+                setSubaccount(createLinkedAccountResp.subAccount as Address);
+                setSpendPermissionSignature(createLinkedAccountResp.spendPermissionSignature as string);
               }
             }
       });
-    }, [walletClient, setSubaccount, provider, subaccount, signerType]);
+    }, [walletClient, setSubaccount, provider, subaccount, signerType, spendPermissionRequestedAllowance]);
 
     const disconnect = useCallback(async () => {
       if (!provider) return;
