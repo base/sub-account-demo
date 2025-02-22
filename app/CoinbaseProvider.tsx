@@ -254,10 +254,8 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       setSubaccount(createLinkedAccountResp.subAccount as Address);
 
       setSpendPermissionSignature(createLinkedAccountResp.spendPermission.signature as string);
-      // the timestamp returned incorrectly from what the contract expects
-      createLinkedAccountResp.spendPermission.permission.start = Math.floor(createLinkedAccountResp.spendPermission.permission.start / 1000);
-      createLinkedAccountResp.spendPermission.permission.end = Math.floor(createLinkedAccountResp.spendPermission.permission.end / 1000);
       setSpendPermission(createLinkedAccountResp.spendPermission.permission as SpendPermission);
+
     }
   }, [provider, signerType, address, spendPermissionRequestedAllowance, subaccount]);
   
@@ -372,7 +370,10 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     }, [spendPermission, publicClient, setPeriodSpend]);
 
     const sendCallWithSpendPermission = useCallback(async (calls: any[], txValueWei: bigint): Promise<string> => {
-      if (!provider) return '';
+      if (!provider || !spendPermissionSignature) {
+        throw new Error('provider and spendPermissionSignature are required');
+      }
+
 
       const batchCalls =[
         {
