@@ -1,7 +1,8 @@
 import { Hex } from "viem";
 import { toAccount } from "viem/accounts";
+import { Signer } from "../types";
 
-export async function getTurnkeyAccount() {
+export async function getTurnkeyAccount(): Promise<Signer> {
     let id, address;
     
     const turnkeySignerData = localStorage.getItem('cbsw-demo-turnkey-signer');

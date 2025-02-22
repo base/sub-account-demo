@@ -43,10 +43,9 @@ export default function Home() {
     }
   }, [spendPermissionSignature, signSpendPermission, address, subaccount, spendPermissionRequestedAllowance]);
 
-
   const isAddressFunded = useMemo(() => {
-    return addressBalanceWei >= parseEther(spendPermissionRequestedAllowance);
-  }, [addressBalanceWei, spendPermissionRequestedAllowance]);
+    return addressBalanceWei > BigInt(0);
+  }, [addressBalanceWei]);
 
   useEffect(() => {
     if (address && !subaccount && isAddressFunded) {
@@ -126,6 +125,13 @@ export default function Home() {
           >
             {isFaucetLoading ? 'Requesting...' : 'Request funds'}
           </button>
+          <div className="mt-4">
+            <button className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors" onClick={async () => {
+                await fetchAddressBalance();
+              }}>
+              Refresh my balance
+            </button>
+          </div>
         </div>
       );
     }

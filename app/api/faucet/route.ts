@@ -11,6 +11,7 @@ export async function POST(req: Request) {
     });
 
     if (!response.ok) {
+        console.error('Failed to disperse faucet', await response.json());
         return new Response('Failed to disperse faucet', { status: 500 });
     }
 

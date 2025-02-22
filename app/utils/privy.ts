@@ -1,7 +1,8 @@
 import { Hex } from "viem";
 import { toAccount } from "viem/accounts";
+import { Signer } from "../types";
 
-export async function getPrivyAccount() {
+export async function getPrivyAccount(): Promise<Signer> {
     // TODO: get walletId and address from local storage if there.
 
     const response = await fetch('/api/wallets', {

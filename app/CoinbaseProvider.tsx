@@ -4,10 +4,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { Address, Chain, createPublicClient, createWalletClient, custom, fromHex, Hex, http, parseEther, toHex, WalletClient } from "viem";
 import { baseSepolia } from "viem/chains";
 import { spendPermissionManagerAbi } from "./abi";
-import { SignerType, SpendPermission } from "./types";
+import { Signer, SignerType, SpendPermission, WalletConnectResponse } from "./types";
 import { clearObjectStore } from "./utils/clearIndexDB";
 import { getTurnkeyAccount } from "./utils/turnkey";
-import { SPEND_PERMISSION_REQUESTED_ALLOWANCE } from "./utils/constants";
+import { SPEND_PERMISSION_REQUESTED_ALLOWANCE, SPEND_PERMISSION_TOKEN } from "./utils/constants";
 
 export const SPEND_PERMISSION_MANAGER_ADDRESS = '0xf85210B21cC50302F477BA56686d2019dC9b67Ad';
 
@@ -81,16 +81,16 @@ async function handleCreateLinkedAccount(provider: ProviderInterface,
   }
   let signer;
   if (signerType === 'browser') {
-    signer = account.account.publicKey;
+    signer = account.account?.publicKey;
   } else if (signerType === 'privy') {
-    signer = account.account.address;
+    signer = account.account?.address;
   } else if (signerType === 'turnkey') {
-    signer = account.account.address;
+    signer = account.account?.address;
   }
   if (!signer) {
     throw new Error('signer not found');
   }
-  const response = await provider.request({
+  const response = (await provider.request({
     method: 'wallet_connect',
     params: [{
       version: '1',
@@ -106,50 +106,14 @@ async function handleCreateLinkedAccount(provider: ProviderInterface,
         getSpendPermissions: true,
       },
     }],
-  });
+  })) as WalletConnectResponse;
   console.log('custom logs createLinkedAccount resp:', response);
   return {
-    address: response.accounts[0].capabilities.addAddress.root,
-    subAccount: response.accounts[0].capabilities.addAddress.address,
-    spendPermissionSignature: response.accounts[0].capabilities.spendPermissions,
+    address: response?.accounts[0].capabilities?.addAddress?.root,
+    subAccount: response?.accounts[0].capabilities?.addAddress?.address,
+    spendPermission: response?.accounts[0].capabilities?.spendPermissions,
   };
 }
-
-async function addAddress(provider: ProviderInterface, chain: Chain, signerType: SignerType) {
-  const signerFunc = getSignerFunc(signerType);
-  if (!signerFunc) {
-    throw new Error('signerFunc is required');
-  }
-  const account = await signerFunc();
-  if (!account) {
-    throw new Error('account is required');
-  }
-  let signer;
-  if (signerType === 'browser') {
-    signer = account.account.publicKey;
-  } else if (signerType === 'privy') {
-    signer = account.account.address;
-  } else if (signerType === 'turnkey') {
-    signer = account.account.address;
-  }
-    const response = (await provider.request({
-      method: 'wallet_addAddress',
-      params: [
-        {
-          version: '1',
-          chainId: chain.id,
-          capabilities: {
-            createAccount: {
-              signer,
-            },
-          },
-        },
-      ],
-    })) as { address: string, root: string };
-    console.log('custom logs addAddress resp:', response);
-    return response;
-}
-
 async function handleSwitchChain(provider: ProviderInterface) {
     await provider.request({
         method: 'wallet_switchEthereumChain',
@@ -167,7 +131,7 @@ type PeriodSpend = {
   spend: bigint;
 }
 
-const getSignerFunc = (signerType: SignerType) => {
+const getSignerFunc = (signerType: SignerType): (() => Promise<Signer>) => {
   if (signerType === 'browser') {
     return getCryptoKeyAccount;
   } else if (signerType === 'privy') {
@@ -175,6 +139,7 @@ const getSignerFunc = (signerType: SignerType) => {
   } else if (signerType === 'turnkey') {
     return getTurnkeyAccount;
   }
+  throw new Error('Invalid signer type');
 }
 
 const clearCache = () => {
@@ -278,7 +243,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
 
       // request creation of one. TODO: if one exists, add new owner.
       const createLinkedAccountResp = await handleCreateLinkedAccount(provider, baseSepolia, signerType, address, {
-        token: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+        token: SPEND_PERMISSION_TOKEN,
         allowance: toHex(parseEther(spendPermissionRequestedAllowance)),
         period: 86400,
         salt: '0x1',
@@ -287,7 +252,12 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       console.log('custom logs createLinkedAccount resp:', createLinkedAccountResp);
       setAddress(createLinkedAccountResp.address as Address);
       setSubaccount(createLinkedAccountResp.subAccount as Address);
-      setSpendPermissionSignature(createLinkedAccountResp.spendPermissionSignature as string);
+
+      setSpendPermissionSignature(createLinkedAccountResp.spendPermission.signature as string);
+      // the timestamp returned incorrectly from what the contract expects
+      createLinkedAccountResp.spendPermission.permission.start = Math.floor(createLinkedAccountResp.spendPermission.permission.start / 1000);
+      createLinkedAccountResp.spendPermission.permission.end = Math.floor(createLinkedAccountResp.spendPermission.permission.end / 1000);
+      setSpendPermission(createLinkedAccountResp.spendPermission.permission as SpendPermission);
     }
   }, [provider, signerType, address, spendPermissionRequestedAllowance, subaccount]);
   
@@ -337,7 +307,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       const spendPermission = {
         account: address,
         spender: subaccount,
-        token: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+        token: SPEND_PERMISSION_TOKEN,
         allowance,
         period,
         start,
