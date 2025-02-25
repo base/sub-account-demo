@@ -28,7 +28,14 @@ export async function POST(request: Request) {
           });
           
           const {signature, encoding} = data;
-    
+
+          /*const valid = await verifyMessage({
+            address,
+            message,
+            signature: signature as `0x${string}`,
+          });
+
+        console.log('valid', valid, signature);*/
         return NextResponse.json({ signature, encoding });
     } else if (signerType === 'turnkey') {
         const response = await turnkey.apiClient()

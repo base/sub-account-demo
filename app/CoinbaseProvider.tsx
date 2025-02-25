@@ -8,6 +8,7 @@ import { Signer, SignerType, SpendPermission, WalletConnectResponse } from "./ty
 import { clearObjectStore } from "./utils/clearIndexDB";
 import { getTurnkeyAccount } from "./utils/turnkey";
 import { SPEND_PERMISSION_REQUESTED_ALLOWANCE, SPEND_PERMISSION_TOKEN } from "./utils/constants";
+import { getPrivyAccount } from "./utils/privy";
 
 export const SPEND_PERMISSION_MANAGER_ADDRESS = '0xf85210B21cC50302F477BA56686d2019dC9b67Ad';
 
@@ -135,7 +136,7 @@ const getSignerFunc = (signerType: SignerType): (() => Promise<Signer>) => {
   if (signerType === 'browser') {
     return getCryptoKeyAccount;
   } else if (signerType === 'privy') {
-    throw new Error('Not implemented')
+    return getPrivyAccount;
   } else if (signerType === 'turnkey') {
     return getTurnkeyAccount;
   }

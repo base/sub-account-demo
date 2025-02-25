@@ -15,6 +15,20 @@ export async function getPrivyAccount(): Promise<Signer> {
 
     const account = toAccount({
         address: createWalletResponseData.address as Hex,
+        sign: async ({ hash}): Promise<Hex> => {
+            const resp: Response = await fetch('/api/wallets/sign', {
+                method: 'POST',
+                body: JSON.stringify({
+                    id: createWalletResponseData.id,
+                    message: hash,
+                    signerType: 'privy',
+                    address: createWalletResponseData.address as Hex,
+                }),
+            });
+            console.log('signMessage response', response);
+            const data = await resp.json();
+            return data.signature as Hex;
+        },
         signMessage: async ({ message}): Promise<Hex> => {
             const resp: Response = await fetch('/api/wallets/sign', {
                 method: 'POST',
@@ -22,6 +36,7 @@ export async function getPrivyAccount(): Promise<Signer> {
                     id: createWalletResponseData.id,
                     message: message,
                     signerType: 'privy',
+                    address: createWalletResponseData.address as Hex,
                 }),
             });
             console.log('signMessage response', response);
