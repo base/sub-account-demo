@@ -21,8 +21,6 @@ export default function PostCard({ post, isTipping, setIsTipping }: PostCardProp
   // Example balance - you'll need to replace this with actual user balance from your app state
 
   const handleQuickTip = async () => {
-    if (isTipping) return;
-    setIsTipping(true);
     
     const DEFAULT_TIP_USD = 0.1; // $1 tip
     
@@ -77,24 +75,23 @@ export default function PostCard({ post, isTipping, setIsTipping }: PostCardProp
       activeTipToasts.delete(toastId);
       
       try {
-        const txHash = await sendCallWithSpendPermission([
+        /*const txHash = await sendCallWithSpendPermission([
           {
             to: (post.author.verified_addresses.eth_addresses[0] || post.author.custody_address) as `0x${string}`,
             data: '0x',
             value: tipAmountWei.toString(),
           }
-        ], tipAmountWei);
+        ], tipAmountWei);*/
 
-        const getExplorerUrl = (txHash: string) => {
-          if (!currentChain) return '#';
-          return `${currentChain.blockExplorers?.default.url}/tx/${txHash}`;
+        const getExplorerUrl = () => {
+          return 'http://localhost:3000';
         };
 
         toast.success(
           <div>
             Successfully tipped @{post.author.username}!
             <a 
-              href={getExplorerUrl(txHash)}
+              href={getExplorerUrl()}
               target="_blank"
               rel="noopener noreferrer" 
               className="block text-blue-500 hover:underline"
@@ -104,7 +101,7 @@ export default function PostCard({ post, isTipping, setIsTipping }: PostCardProp
           </div>,
           { duration: 5000 }
         );
-        console.log('Tip sent:', getExplorerUrl(txHash));
+        //console.log('Tip sent:', getExplorerUrl(txHash));
       } catch (error) {
         toast.error('Failed to send tip');
         console.error('Tip error:', error);
@@ -188,7 +185,7 @@ export default function PostCard({ post, isTipping, setIsTipping }: PostCardProp
             </button>
             
             <button 
-              className={`flex items-center space-x-2 hover:text-yellow-500 ${isTipping ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              className={`flex items-center space-x-2 hover:text-yellow-500 cursor-pointer`}
               onClick={handleQuickTip}
               onDoubleClick={() => setShowTipModal(true)}
               disabled={isTipping}
@@ -196,7 +193,7 @@ export default function PostCard({ post, isTipping, setIsTipping }: PostCardProp
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span>{isTipping ? 'Tipping...' : 'Tip (10¢)'}</span>
+              <span>{'Tip (10¢)'}</span>
             </button>
           </div>
         </div>
