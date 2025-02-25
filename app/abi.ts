@@ -889,3 +889,23 @@ export const spendPermissionManagerAbi = [
     { type: 'error', name: 'ZeroToken', inputs: [] },
     { type: 'error', name: 'ZeroValue', inputs: [] },
   ] as const;
+
+  export const cbswAbi = [
+    {
+      inputs: [
+        { name: 'x', type: 'bytes32' },
+        { name: 'y', type: 'bytes32' },
+      ],
+      name: 'addOwnerPublicKey',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function',
+    },
+    {
+      inputs: [{ name: 'owner', type: 'address' }],
+      name: 'addOwnerAddress',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function',
+    },
+  ]

@@ -1,9 +1,9 @@
 'use client';
 import { createCoinbaseWalletSDK, getCryptoKeyAccount, ProviderInterface } from "@coinbase/wallet-sdk";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Address, Chain, createPublicClient, createWalletClient, custom, fromHex, Hex, http, parseEther, toHex, WalletClient } from "viem";
+import { Address, Chain, createPublicClient, createWalletClient, custom, decodeAbiParameters, encodeFunctionData, fromHex, Hex, http, parseEther, toHex, WalletClient } from "viem";
 import { baseSepolia } from "viem/chains";
-import { spendPermissionManagerAbi } from "./abi";
+import { cbswAbi, spendPermissionManagerAbi } from "./abi";
 import { Signer, SignerType, SpendPermission, WalletConnectResponse } from "./types";
 import { clearObjectStore } from "./utils/clearIndexDB";
 import { getTurnkeyAccount } from "./utils/turnkey";
@@ -112,6 +112,7 @@ async function handleCreateLinkedAccount(provider: ProviderInterface,
   return {
     address: response?.accounts[0].capabilities?.addAddress?.root,
     subAccount: response?.accounts[0].capabilities?.addAddress?.address,
+    owners: response?.accounts[0].capabilities?.addAddress?.owners,
     spendPermission: response?.accounts[0].capabilities?.spendPermissions,
   };
 }
@@ -166,7 +167,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     const [,setPeriodSpend] = useState<PeriodSpend | null>(null);
     const [remainingSpend, setRemainingSpend] = useState<bigint | null>(fromHex('0x71afd498d0000', 'bigint'));
     const [signerType, setSignerType] = useState<SignerType>('browser');
-
+    const [owners, setOwners] = useState<Address[]>([]);
     useEffect(() => {
         const cachedSignerType = localStorage.getItem('cbsw-demo-cachedSignerType') as SignerType;
         if (cachedSignerType) {
@@ -256,7 +257,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
 
       setSpendPermissionSignature(createLinkedAccountResp.spendPermission.signature as string);
       setSpendPermission(createLinkedAccountResp.spendPermission.permission as SpendPermission);
-
+      setOwners(createLinkedAccountResp.owners);
     }
   }, [provider, signerType, address, spendPermissionRequestedAllowance, subaccount]);
   
@@ -375,6 +376,59 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
         throw new Error('provider and spendPermissionSignature are required');
       }
 
+      const account = await getSignerFunc(signerType)();
+      if (!account) {
+        throw new Error('account is required');
+      }
+      let signer: `0x${string}`;
+      if (signerType === 'browser') {
+        signer = account.account?.publicKey as `0x${string}`;
+      } else if (signerType === 'privy') {
+        signer = account.account?.address as `0x${string}`;
+      } else if (signerType === 'turnkey') {
+        signer = account.account?.address as `0x${string}`;
+      } else {
+        throw new Error('Invalid signer type');
+      }
+
+      if (!owners.includes(signer)) {
+        let args;
+        if (signerType === 'browser') {
+          args = decodeAbiParameters(
+            [{ type: 'bytes32' }, { type: 'bytes32' }],
+            signer
+          );
+        } else {
+          args = [signer];
+        }
+        try {
+         const hash = await provider.request({
+            method: 'wallet_sendCalls',
+            params: [
+              {
+                version: 1,
+                from: address,
+                chainId: toHex(baseSepolia.id),
+                calls: [{
+                  to: subaccount,
+                  data: encodeFunctionData({
+                    args,
+                    functionName: signerType === 'browser' ? 'addOwnerPublicKey' : 'addOwnerAddress',
+                    abi: cbswAbi
+                  }),
+                  value: toHex(0),
+                }]
+              }
+            ],
+          });
+          console.log('custom logs add owner hash:', hash);
+          setOwners([...owners, signer]);
+        } catch (error) {
+          console.error('custom logs add owner error', error);
+          throw error;
+        }
+        return '';
+      }
 
       const batchCalls =[
         {
@@ -415,7 +469,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       
       await refreshPeriodSpend();
       return response as string;
-    }, [provider, spendPermissionSignature, spendPermission, currentChain, refreshPeriodSpend, subaccount]);
+    }, [provider, spendPermissionSignature, spendPermission, currentChain, refreshPeriodSpend, subaccount, signerType, owners, address]);
 
     const wrappedSetSignerType = useCallback((newSignerType: SignerType) => {
       if (signerType !== newSignerType) {
