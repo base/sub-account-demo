@@ -62,7 +62,6 @@ const CoinbaseContext = createContext<CoinbaseContextType>({
 // create sub account and a subsequent spend permission for it.
 async function handleCreateLinkedAccount(provider: ProviderInterface,
   chain: Chain,
-  signerType: SignerType,
   address: Address,
   spendPermissionOps: {
     token: `0x${string}`,
@@ -70,25 +69,11 @@ async function handleCreateLinkedAccount(provider: ProviderInterface,
     period: number;
     salt: string;
     extraData: string;
-  }
+  },
+  activeSigner: Hex
 ) {
-  const signerFunc = getSignerFunc(signerType);
-  if (!signerFunc) {
-    throw new Error('signerFunc is required');
-  }
-  const account = await signerFunc();
-  if (!account) {
-    throw new Error('account is required');
-  }
-  let signer;
-  if (signerType === 'browser') {
-    signer = account.account?.publicKey;
-  } else if (signerType === 'privy') {
-    signer = account.account?.address;
-  } else if (signerType === 'turnkey') {
-    signer = account.account?.address;
-  }
-  if (!signer) {
+  
+  if (!activeSigner) {
     throw new Error('signer not found');
   }
   const response = (await provider.request({
@@ -99,7 +84,7 @@ async function handleCreateLinkedAccount(provider: ProviderInterface,
         addAddress: {
           chainId: chain.id,
           createAccount: {
-            signer,
+            signer: activeSigner,
           },
           address
         },
@@ -168,12 +153,33 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     const [remainingSpend, setRemainingSpend] = useState<bigint | null>(fromHex('0x71afd498d0000', 'bigint'));
     const [signerType, setSignerType] = useState<SignerType>('browser');
     const [owners, setOwners] = useState<Address[]>([]);
+    const [activeSigner, setActiveSigner] = useState<Hex | null>(null);
     useEffect(() => {
         const cachedSignerType = localStorage.getItem('cbsw-demo-cachedSignerType') as SignerType;
         if (cachedSignerType) {
             setSignerType(cachedSignerType);
         }
     }, []);
+
+    useEffect(() => {
+      const getActiveSigner = async () => {
+        if (!activeSigner) {
+          const signerAccount = await getSignerFunc(signerType)();
+          if (signerAccount) {
+            let signer;
+            if (signerType === 'browser') {
+              signer = signerAccount.account?.publicKey;
+            } else if (signerType === 'privy') {
+              signer = signerAccount.account?.address;
+            } else if (signerType === 'turnkey') {
+              signer = signerAccount.account?.address;
+            }
+            setActiveSigner(signer as Hex);
+          }
+        }
+      }
+      getActiveSigner();
+    }, [activeSigner, setActiveSigner, signerType]);
 
     useEffect(() => {
         const sdk = createCoinbaseWalletSDK({
@@ -239,27 +245,26 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
   const createLinkedAccount = useCallback(async () => {
     if (!subaccount && address) {
 
-      if (!provider) {
-        throw new Error('provider is required');
+      if (!provider || !activeSigner) {
+        throw new Error('provider and activeSigner are required');
       }
 
       // request creation of one. TODO: if one exists, add new owner.
-      const createLinkedAccountResp = await handleCreateLinkedAccount(provider, baseSepolia, signerType, address, {
+      const createLinkedAccountResp = await handleCreateLinkedAccount(provider, baseSepolia, address, {
         token: SPEND_PERMISSION_TOKEN,
         allowance: toHex(parseEther(spendPermissionRequestedAllowance)),
         period: 86400,
         salt: '0x1',
         extraData: '0x' as Hex
-      });
+      }, activeSigner);
       console.log('custom logs createLinkedAccount resp:', createLinkedAccountResp);
       setAddress(createLinkedAccountResp.address as Address);
       setSubaccount(createLinkedAccountResp.subAccount as Address);
 
       setSpendPermissionSignature(createLinkedAccountResp.spendPermission.signature as string);
       setSpendPermission(createLinkedAccountResp.spendPermission.permission as SpendPermission);
-      setOwners(createLinkedAccountResp.owners);
     }
-  }, [provider, signerType, address, spendPermissionRequestedAllowance, subaccount]);
+  }, [provider, address, spendPermissionRequestedAllowance, subaccount, activeSigner]);
   
     /*useEffect(() => {
       if (!walletClient) return;
@@ -372,34 +377,60 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     }, [spendPermission, publicClient, setPeriodSpend]);
 
     const sendCallWithSpendPermission = useCallback(async (calls: any[], txValueWei: bigint): Promise<string> => {
-      if (!provider || !spendPermissionSignature) {
-        throw new Error('provider and spendPermissionSignature are required');
+      if (!provider || !spendPermissionSignature || !activeSigner) {
+        throw new Error('provider and spendPermissionSignature and activeSigner are required');
       }
+      const batchCalls =[
+        {
+          to: SPEND_PERMISSION_MANAGER_ADDRESS,
+          abi: spendPermissionManagerAbi,
+          functionName: 'approveWithSignature',
+          args: [spendPermission, spendPermissionSignature],
+          data: '0x',
+      },
+      {
+          to: SPEND_PERMISSION_MANAGER_ADDRESS,
+          abi: spendPermissionManagerAbi,
+          functionName: 'spend',
+          args: [spendPermission, txValueWei.toString()],
+          data: '0x',
+      },
+       ...calls
+      ];
 
-      const account = await getSignerFunc(signerType)();
-      if (!account) {
-        throw new Error('account is required');
-      }
-      let signer: `0x${string}`;
-      if (signerType === 'browser') {
-        signer = account.account?.publicKey as `0x${string}`;
-      } else if (signerType === 'privy') {
-        signer = account.account?.address as `0x${string}`;
-      } else if (signerType === 'turnkey') {
-        signer = account.account?.address as `0x${string}`;
-      } else {
-        throw new Error('Invalid signer type');
-      }
+      console.log('custom logs, sendCallWithSpendPermission, spendPermissionSignature:', spendPermissionSignature
+        , 'spendPermission:', spendPermission, 'txValueWei:', txValueWei, 'calls:', batchCalls
+      );
+      try {
 
-      if (!owners.includes(signer)) {
+        const response = await provider.request({
+          method: 'wallet_sendCalls',
+          params: [
+            {
+              chainId: currentChain?.id,
+              calls: batchCalls,
+              from: subaccount,
+              version: '1',
+              capabilities: {
+                  paymasterService: {
+                      url: process.env.NEXT_PUBLIC_PAYMASTER_SERVICE_URL!
+                  }
+              }
+            }   
+        ]});
+        await refreshPeriodSpend();
+        return response as string;
+      } catch (error) {
+        console.error('custom logs error sending call:', error);
+        // TODO: add owner check status code
         let args;
         if (signerType === 'browser') {
           args = decodeAbiParameters(
             [{ type: 'bytes32' }, { type: 'bytes32' }],
-            signer
+            activeSigner
           );
         } else {
-          args = [signer];
+          args = [activeSigner];
         }
         try {
          const hash = await provider.request({
@@ -422,54 +453,15 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
             ],
           });
           console.log('custom logs add owner hash:', hash);
-          setOwners([...owners, signer]);
+          setOwners([...owners, activeSigner]);
         } catch (error) {
           console.error('custom logs add owner error', error);
           throw error;
         }
         return '';
       }
-
-      const batchCalls =[
-        {
-          to: SPEND_PERMISSION_MANAGER_ADDRESS,
-          abi: spendPermissionManagerAbi,
-          functionName: 'approveWithSignature',
-          args: [spendPermission, spendPermissionSignature],
-          data: '0x',
-      },
-      {
-          to: SPEND_PERMISSION_MANAGER_ADDRESS,
-          abi: spendPermissionManagerAbi,
-          functionName: 'spend',
-          args: [spendPermission, txValueWei.toString()],
-          data: '0x',
-      },
-       ...calls
-      ];
-
-      console.log('custom logs, sendCallWithSpendPermission, spendPermissionSignature:', spendPermissionSignature
-        , 'spendPermission:', spendPermission, 'txValueWei:', txValueWei, 'calls:', batchCalls
-      );
-      const response = await provider.request({
-        method: 'wallet_sendCalls',
-        params: [
-          {
-            chainId: currentChain?.id,
-            calls: batchCalls,
-            from: subaccount,
-            version: '1',
-            capabilities: {
-                paymasterService: {
-                    url: process.env.NEXT_PUBLIC_PAYMASTER_SERVICE_URL!
-                }
-            }
-          }   
-      ]});
       
-      await refreshPeriodSpend();
-      return response as string;
-    }, [provider, spendPermissionSignature, spendPermission, currentChain, refreshPeriodSpend, subaccount, signerType, owners, address]);
+    }, [provider, spendPermissionSignature, spendPermission, currentChain, refreshPeriodSpend, subaccount, signerType, owners, address, activeSigner]);
 
     const wrappedSetSignerType = useCallback((newSignerType: SignerType) => {
       if (signerType !== newSignerType) {
