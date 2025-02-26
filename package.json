@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@coinbase/onchainkit": "^0.36.11",
-    "@coinbase/wallet-sdk": "file:./coinbase-wallet-sdk-4.4.0-alpha.2025-02-21.tgz",
+    "@coinbase/wallet-sdk": "file:./coinbase-wallet-sdk-4.4.0-canary.1.tgz",
     "@neynar/nodejs-sdk": "^2.12.0",
     "@privy-io/server-auth": "^1.18.8",
     "@turnkey/sdk-server": "^2.0.1",

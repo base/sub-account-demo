@@ -29,7 +29,7 @@ export default function Home() {
     };
     fetchPosts();
   }, []);
-
+/*
   useEffect(() => {
     if (!spendPermissionSignature && address && subaccount) {
       signSpendPermission({
@@ -42,19 +42,10 @@ export default function Home() {
       });
     }
   }, [spendPermissionSignature, signSpendPermission, address, subaccount, spendPermissionRequestedAllowance]);
-
+*/
   const isAddressFunded = useMemo(() => {
     return addressBalanceWei > BigInt(0);
   }, [addressBalanceWei]);
-
-  /*useEffect(() => {
-    if (address && !subaccount && isAddressFunded) {
-      createLinkedAccount().catch((error) => {
-        console.error('error creating linked account', error);
-      });
-    }
-
-  }, [address, subaccount, isAddressFunded, createLinkedAccount])*/
   
   const renderContent = () => {
     if (Number(spendPermissionRequestedAllowance) === 0 || spendPermissionRequestedAllowance === '') {
@@ -80,7 +71,7 @@ export default function Home() {
           </button>
         </div>
       );
-    } else if (!subaccount && !isAddressFunded) {
+    } else if (!isAddressFunded) {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50">
           <Toaster position="top-right" />

@@ -61,8 +61,6 @@ const CoinbaseContext = createContext<CoinbaseContextType>({
 
 // create sub account and a subsequent spend permission for it.
 async function handleCreateLinkedAccount(provider: ProviderInterface,
-  chain: Chain,
-  address: Address,
   spendPermissionOps: {
     token: `0x${string}`,
     allowance: string;
@@ -70,6 +68,7 @@ async function handleCreateLinkedAccount(provider: ProviderInterface,
     salt: string;
     extraData: string;
   },
+  signerType: SignerType,
   activeSigner: Hex
 ) {
   
@@ -81,12 +80,14 @@ async function handleCreateLinkedAccount(provider: ProviderInterface,
     params: [{
       version: '1',
       capabilities: {
-        addAddress: {
-          chainId: chain.id,
-          createAccount: {
-            signer: activeSigner,
-          },
-          address
+        addSubAccount: {
+          account: {
+            type: 'create',
+            keys: [{
+              type: signerType === 'browser' ? 'webauthn-p256' : 'address',
+              key: activeSigner,
+            }]   
+          }
         },
         spendPermissions: spendPermissionOps,
       },
@@ -94,9 +95,8 @@ async function handleCreateLinkedAccount(provider: ProviderInterface,
   })) as WalletConnectResponse;
   console.log('custom logs createLinkedAccount resp:', response);
   return {
-    address: response?.accounts[0].capabilities?.addAddress?.root,
-    subAccount: response?.accounts[0].capabilities?.addAddress?.address,
-    owners: response?.accounts[0].capabilities?.addAddress?.owners,
+    address: response?.accounts[0].address,
+    subAccount: response?.accounts[0].capabilities?.addSubAccount?.address,
     spendPermission: response?.accounts[0].capabilities?.spendPermissions,
   };
 }
@@ -151,7 +151,6 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
     const [,setPeriodSpend] = useState<PeriodSpend | null>(null);
     const [remainingSpend, setRemainingSpend] = useState<bigint | null>(fromHex('0x71afd498d0000', 'bigint'));
     const [signerType, setSignerType] = useState<SignerType>('browser');
-    const [owners, setOwners] = useState<Address[]>([]);
     const [activeSigner, setActiveSigner] = useState<Hex | null>(null);
     useEffect(() => {
         const cachedSignerType = localStorage.getItem('cbsw-demo-cachedSignerType') as SignerType;
@@ -178,7 +177,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
         }
       }
       getActiveSigner();
-    }, [activeSigner, setActiveSigner, signerType]);
+    }, [activeSigner, signerType]);
 
     useEffect(() => {
         const sdk = createCoinbaseWalletSDK({
@@ -239,31 +238,29 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       setRemainingSpend(null);
       setPeriodSpend(null);
       clearCache();
+      setActiveSigner(null);
   }, [provider]);
 
   const createLinkedAccount = useCallback(async () => {
-    if (!subaccount && address) {
-
       if (!provider || !activeSigner) {
         throw new Error('provider and activeSigner are required');
       }
 
       // request creation of one. TODO: if one exists, add new owner.
-      const createLinkedAccountResp = await handleCreateLinkedAccount(provider, baseSepolia, address, {
+      const createLinkedAccountResp = await handleCreateLinkedAccount(provider, {
         token: SPEND_PERMISSION_TOKEN,
         allowance: toHex(parseEther(spendPermissionRequestedAllowance)),
         period: 86400,
         salt: '0x1',
         extraData: '0x' as Hex
-      }, activeSigner);
+      }, signerType, activeSigner);
       console.log('custom logs createLinkedAccount resp:', createLinkedAccountResp);
       setAddress(createLinkedAccountResp.address as Address);
       setSubaccount(createLinkedAccountResp.subAccount as Address);
 
       setSpendPermissionSignature(createLinkedAccountResp.spendPermission.signature as string);
       setSpendPermission(createLinkedAccountResp.spendPermission.permission as SpendPermission);
-    }
-  }, [provider, address, spendPermissionRequestedAllowance, subaccount, activeSigner]);
+  }, [provider, spendPermissionRequestedAllowance, activeSigner, signerType]);
   
     /*useEffect(() => {
       if (!walletClient) return;
@@ -401,7 +398,6 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
         , 'spendPermission:', spendPermission, 'txValueWei:', txValueWei, 'calls:', batchCalls
       );
       try {
-
         const response = await provider.request({
           method: 'wallet_sendCalls',
           params: [
@@ -420,51 +416,47 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
         await refreshPeriodSpend();
         return response as string;
       } catch (error) {
-        console.error('custom logs error sending call:', error);
-        // TODO: add owner check status code
-        let args;
-        if (signerType === 'browser') {
-          args = decodeAbiParameters(
-            [{ type: 'bytes32' }, { type: 'bytes32' }],
-            activeSigner
-          );
-        } else {
-          args = [activeSigner];
-        }
-        try {
-         const hash = await provider.request({
-            method: 'wallet_sendCalls',
-            params: [
-              {
-                version: 1,
-                from: address,
-                chainId: toHex(baseSepolia.id),
-                calls: [{
-                  to: subaccount,
-                  data: encodeFunctionData({
-                    args,
-                    functionName: signerType === 'browser' ? 'addOwnerPublicKey' : 'addOwnerAddress',
-                    abi: cbswAbi
-                  }),
-                  value: toHex(0),
-                }]
-              }
-            ],
-          });
+        console.error('custom logs error sending call:', error, error.code);
+        if (error?.code === -32603) {
+          let args;
+          if (signerType === 'browser') {
+            args = decodeAbiParameters(
+              [{ type: 'bytes32' }, { type: 'bytes32' }],
+              activeSigner
+            );
+          } else {
+            args = [activeSigner];
+          }
+          const hash = await provider.request({
+              method: 'wallet_sendCalls',
+              params: [
+                {
+                  version: 1,
+                  from: address,
+                  chainId: toHex(baseSepolia.id),
+                  calls: [{
+                    to: subaccount,
+                    data: encodeFunctionData({
+                      args,
+                      functionName: signerType === 'browser' ? 'addOwnerPublicKey' : 'addOwnerAddress',
+                      abi: cbswAbi
+                    }),
+                    value: toHex(0),
+                  }]
+                }
+              ],
+            });
           console.log('custom logs add owner hash:', hash);
-          setOwners([...owners, activeSigner]);
-        } catch (error) {
-          console.error('custom logs add owner error', error);
-          throw error;
+          return '';
         }
-        return '';
       }
       
-    }, [provider, spendPermissionSignature, spendPermission, currentChain, refreshPeriodSpend, subaccount, signerType, owners, address, activeSigner]);
+    }, [provider, spendPermissionSignature, spendPermission, currentChain, refreshPeriodSpend, subaccount, signerType, address, activeSigner]);
 
     const wrappedSetSignerType = useCallback((newSignerType: SignerType) => {
       if (signerType !== newSignerType) {
         clearCache();
+        setActiveSigner(null);
         setSignerType(newSignerType);
         localStorage.setItem('cbsw-demo-cachedSignerType', newSignerType);
       }
