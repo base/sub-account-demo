@@ -13,7 +13,7 @@ import { useMediaQuery } from 'react-responsive';
 import disperseFaucet from "./utils/faucet";
 
 export default function Home() {
-  const { address, subaccount, fetchAddressBalance, publicClient, createLinkedAccount, connect, addressBalanceWei, currentChain, switchChain, spendPermissionSignature, signSpendPermission, spendPermissionRequestedAllowance } = useCoinbaseProvider();
+  const { address, subaccount, fetchAddressBalance, publicClient, createLinkedAccount, addressBalanceWei, currentChain, switchChain, spendPermissionSignature, signSpendPermission, spendPermissionRequestedAllowance } = useCoinbaseProvider();
   const [posts, setPosts] = useState<Post[]>([]);
   const [isTipping, setIsTipping] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -47,14 +47,14 @@ export default function Home() {
     return addressBalanceWei > BigInt(0);
   }, [addressBalanceWei]);
 
-  useEffect(() => {
+  /*useEffect(() => {
     if (address && !subaccount && isAddressFunded) {
       createLinkedAccount().catch((error) => {
         console.error('error creating linked account', error);
       });
     }
 
-  }, [address, subaccount, isAddressFunded, createLinkedAccount])
+  }, [address, subaccount, isAddressFunded, createLinkedAccount])*/
   
   const renderContent = () => {
     if (Number(spendPermissionRequestedAllowance) === 0 || spendPermissionRequestedAllowance === '') {
@@ -73,7 +73,7 @@ export default function Home() {
         <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50">
           <Hero />
           <button 
-            onClick={() => connect()}
+            onClick={() => createLinkedAccount()}
             className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
           >
             Sign in with Coinbase

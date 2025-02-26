@@ -89,7 +89,6 @@ async function handleCreateLinkedAccount(provider: ProviderInterface,
           address
         },
         spendPermissions: spendPermissionOps,
-        getSpendPermissions: true,
       },
     }],
   })) as WalletConnectResponse;
