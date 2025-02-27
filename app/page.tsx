@@ -52,9 +52,10 @@ export default function Home() {
           <Hero />
           <button 
             onClick={() => createLinkedAccount()}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            className="px-6 py-3 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            style={{ backgroundColor: '#0052FF' }}
           >
-            Sign in with Coinbase
+            Connect
           </button>
         </div>
       );
