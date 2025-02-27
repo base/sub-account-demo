@@ -13,7 +13,7 @@ export default function SettingsPanel({ isLoggedIn, isMobile, onClose }: Setting
 
 
   return (
-    <div className="h-full bg-gray-50 border-r border-gray-200">
+    <div className="h-full bg-gray-50 border-r border-gray-200 w-80 max-w-80 flex-shrink-0">
       <div className="p-6">
         {isMobile && (
           <button 
