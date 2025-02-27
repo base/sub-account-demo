@@ -416,8 +416,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
         await refreshPeriodSpend();
         return response as string;
       } catch (error) {
-        console.error('custom logs error sending call:', error, error.code);
-        if (error?.code === -32603) {
+        if (error?.code === -32603 && error?.message?.includes('account owner not found')) {
           let args;
           if (signerType === 'browser') {
             args = decodeAbiParameters(
