@@ -73,7 +73,7 @@ export default function SettingsPanel({ isLoggedIn, isMobile, onClose }: Setting
           {isLoggedIn && (
             <div className="bg-gray-100 rounded-lg p-4">
               <p className="text-sm text-gray-600">
-                ℹ️ Settings can only be modified when logged out
+                ℹ️ Settings can only be modified when wallet is not connected
               </p>
             </div>
           )}

@@ -416,6 +416,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
         await refreshPeriodSpend();
         return response as string;
       } catch (error) {
+        console.error('custom logs sendCallWithSpendPermission error:', error);
         if (error?.code === -32603 && error?.message?.includes('account owner not found')) {
           let args;
           if (signerType === 'browser') {
@@ -448,8 +449,8 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
           console.log('custom logs add owner hash:', hash);
           return '';
         }
-      }
-      
+        throw error;
+      }      
     }, [provider, spendPermissionSignature, spendPermission, currentChain, refreshPeriodSpend, subaccount, signerType, address, activeSigner]);
 
     const wrappedSetSignerType = useCallback((newSignerType: SignerType) => {
