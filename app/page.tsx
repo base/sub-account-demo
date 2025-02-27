@@ -6,7 +6,7 @@ import Hero from "./components/Hero";
 import { Post } from "./types";
 import { useEffect, useMemo, useState } from "react";
 import WalletFooter from "./components/WalletFooter";
-import { Hex, parseEther, toHex } from "viem";
+import { Hex } from "viem";
 import toast, { Toaster } from 'react-hot-toast';
 import SettingsPanel from "./components/SettingsPanel";
 import { useMediaQuery } from 'react-responsive';
@@ -29,20 +29,7 @@ export default function Home() {
     };
     fetchPosts();
   }, []);
-/*
-  useEffect(() => {
-    if (!spendPermissionSignature && address && subaccount) {
-      signSpendPermission({
-        allowance: toHex(parseEther(spendPermissionRequestedAllowance)),
-        period: 86400, // seconds in a day
-        start: Math.floor(Date.now() / 1000),
-        end: Math.floor(Date.now() / 1000 + 30 * 24 * 60 * 60), // one month from now
-        salt: '0x1',
-        extraData: "0x" as Hex,
-      });
-    }
-  }, [spendPermissionSignature, signSpendPermission, address, subaccount, spendPermissionRequestedAllowance]);
-*/
+
   const isAddressFunded = useMemo(() => {
     return addressBalanceWei > BigInt(0);
   }, [addressBalanceWei]);
