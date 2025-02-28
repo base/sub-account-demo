@@ -4,6 +4,7 @@ import "./globals.css";
 import '@coinbase/onchainkit/styles.css';
 
 import Wrapper from "./wrapper";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -27,9 +28,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-      <Wrapper>
-          {children}
-      </Wrapper>
+        <Wrapper>
+            {children}
+        </Wrapper>
+        <Analytics />
       </body>
     </html>
   );

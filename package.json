@@ -15,6 +15,7 @@
     "@privy-io/server-auth": "^1.18.8",
     "@turnkey/sdk-server": "^2.0.1",
     "@turnkey/viem": "^0.6.11",
+    "@vercel/analytics": "^1.5.0",
     "next": "14.2.24",
     "react": "^18",
     "react-dom": "^18",
