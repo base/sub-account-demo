@@ -18,6 +18,7 @@ export default function Home() {
   const [isTipping, setIsTipping] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFaucetLoading, setIsFaucetLoading] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const isMobile = useMediaQuery({ maxWidth: 768 });
   
 
@@ -177,27 +178,51 @@ export default function Home() {
   };
 
   return (
-    <div className="flex">
-      {(!isMobile || isSettingsOpen) && (
-        <div className={`${isMobile ? 'fixed inset-0 z-50 bg-white' : 'sticky top-0 h-screen'}`}>
-          <SettingsPanel 
-            isLoggedIn={!!(address || subaccount)}
-            isMobile={isMobile}
-            onClose={() => setIsSettingsOpen(false)}
-          />
+    <div className="flex flex-col">
+      {!bannerDismissed && (
+        <div className="bg-blue-600 text-white p-3 flex justify-between items-center">
+          <div className="flex-1 text-center">
+            Interested in building with Sub Accounts? 
+            <a 
+              href="https://docs.base.org/identity/smart-wallet/guides/sub-accounts/overview" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="underline ml-1 font-medium"
+            >
+              Check out our docs here
+            </a>
+          </div>
+          <button 
+            onClick={() => setBannerDismissed(true)}
+            className="text-white flex-shrink-0 hover:bg-blue-700 rounded-full p-1"
+          >
+            ✕
+          </button>
         </div>
       )}
       
-      <div className="flex-1">
-        {isMobile && (
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="fixed top-4 right-4 z-40 p-2 bg-white rounded-full shadow-lg"
-          >
-            ⚙️
-          </button>
+      <div className="flex flex-1">
+        {(!isMobile || isSettingsOpen) && (
+          <div className={`${isMobile ? 'fixed inset-0 z-50 bg-white' : 'sticky top-0 h-screen'}`}>
+            <SettingsPanel 
+              isLoggedIn={!!(address || subaccount)}
+              isMobile={isMobile}
+              onClose={() => setIsSettingsOpen(false)}
+            />
+          </div>
         )}
-        {renderContent()}
+        
+        <div className="flex-1">
+          {isMobile && (
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="fixed top-4 right-4 z-40 p-2 bg-white rounded-full shadow-lg"
+            >
+              ⚙️
+            </button>
+          )}
+          {renderContent()}
+        </div>
       </div>
     </div>
   );
