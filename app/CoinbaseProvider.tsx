@@ -93,7 +93,6 @@ async function handleCreateLinkedAccount(provider: ProviderInterface,
       },
     }],
   })) as WalletConnectResponse;
-  console.log('custom logs createLinkedAccount resp:', response);
   return {
     address: response?.accounts[0].address,
     subAccount: response?.accounts[0].capabilities?.addSubAccount?.address,
@@ -246,7 +245,6 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
         throw new Error('provider and activeSigner are required');
       }
 
-      // request creation of one. TODO: if one exists, add new owner.
       const createLinkedAccountResp = await handleCreateLinkedAccount(provider, {
         token: SPEND_PERMISSION_TOKEN,
         allowance: toHex(parseEther(spendPermissionRequestedAllowance)),
@@ -254,7 +252,6 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
         salt: '0x1',
         extraData: '0x' as Hex
       }, signerType, activeSigner);
-      console.log('custom logs createLinkedAccount resp:', createLinkedAccountResp);
       setAddress(createLinkedAccountResp.address as Address);
       setSubaccount(createLinkedAccountResp.subAccount as Address);
 
@@ -262,18 +259,6 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       setSpendPermission(createLinkedAccountResp.spendPermission.permission as SpendPermission);
   }, [provider, spendPermissionRequestedAllowance, activeSigner, signerType]);
   
-    /*useEffect(() => {
-      if (!walletClient) return;
-      walletClient
-        .getAddresses()
-        .then((addresses) => {
-          console.log('custom logs getAddresses resp:', addresses);
-            if(addresses.length > 0) {
-             // setSubaccount(addresses[0])
-            }
-          });
-    }, [walletClient]);*/
-
     useEffect(() => {
       const initSpendPermissionsFromStore = async () => {
         // see if user has any spend permissions in local storage
@@ -316,7 +301,6 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
         salt,
         extraData
       }
-      console.log('custom logs spendPermission:', spendPermission);
       const signature = await provider.request({
         method: 'eth_signTypedData_v4',
         params: [
@@ -348,7 +332,6 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       });
       setSpendPermission(spendPermission);
       setSpendPermissionSignature(signature as string);
-      console.log('custom logs spendPermissionSignature:', signature);
       localStorage.setItem('cbsw-demo-spendPermissions', JSON.stringify(spendPermission));
       localStorage.setItem('cbsw-demo-spendPermissions-signature', signature as string);
     }, [provider, address, subaccount]);
@@ -394,9 +377,6 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
        ...calls
       ];
 
-      console.log('custom logs, sendCallWithSpendPermission, spendPermissionSignature:', spendPermissionSignature
-        , 'spendPermission:', spendPermission, 'txValueWei:', txValueWei, 'calls:', batchCalls
-      );
       try {
         const response = await provider.request({
           method: 'wallet_sendCalls',
@@ -416,7 +396,6 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
         await refreshPeriodSpend();
         return response as string;
       } catch (error) {
-        console.error('custom logs sendCallWithSpendPermission error:', error);
         if (error?.code === -32603 && error?.message?.includes('account owner not found')) {
           let args;
           if (signerType === 'browser') {
@@ -446,7 +425,6 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
                 }
               ],
             });
-          console.log('custom logs add owner hash:', hash);
           return '';
         }
         throw error;
