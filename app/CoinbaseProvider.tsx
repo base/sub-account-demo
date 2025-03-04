@@ -6,9 +6,8 @@ import { baseSepolia } from "viem/chains";
 import { cbswAbi, spendPermissionManagerAbi } from "./abi";
 import { Signer, SignerType, SpendPermission, WalletConnectResponse } from "./types";
 import { getTurnkeyAccount } from "./utils/turnkey";
-import { SPEND_PERMISSION_REQUESTED_ALLOWANCE, SPEND_PERMISSION_TOKEN } from "./utils/constants";
+import { SPEND_PERMISSION_DOMAIN, SPEND_PERMISSION_MANAGER_ADDRESS, SPEND_PERMISSION_REQUESTED_ALLOWANCE, SPEND_PERMISSION_TOKEN, SPEND_PERMISSION_TYPES } from "./utils/constants";
 
-export const SPEND_PERMISSION_MANAGER_ADDRESS = '0xf85210B21cC50302F477BA56686d2019dC9b67Ad';
 
 type CoinbaseContextType = {
     provider: ProviderInterface | null;
@@ -156,8 +155,6 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
             let signer;
             if (signerType === 'browser') {
               signer = signerAccount.account?.publicKey;
-            } else if (signerType === 'privy') {
-              signer = signerAccount.account?.address;
             } else if (signerType === 'turnkey') {
               signer = signerAccount.account?.address;
             }
@@ -290,27 +287,10 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
         params: [
           address,
           {
-            types: {
-              SpendPermission: [
-                { name: "account", type: "address" },
-                { name: "spender", type: "address" },
-                { name: 'token', type: 'address' },
-                { name: 'allowance', type: 'uint160' },
-                { name: 'period', type: 'uint48' },
-                { name: 'start', type: 'uint48' },
-                { name: 'end', type: 'uint48' },
-                { name: 'salt', type: 'uint256' },
-                { name: 'extraData', type: 'bytes' }
-              ]
-            },
+            types: SPEND_PERMISSION_TYPES,
             primaryType: "SpendPermission",
             message: spendPermission,
-            domain: {
-              name: 'Spend Permission Manager',
-              version: "1",
-              chainId: baseSepolia.id,
-              verifyingContract: SPEND_PERMISSION_MANAGER_ADDRESS
-            }
+            domain: SPEND_PERMISSION_DOMAIN
           }
         ]
       });
@@ -349,6 +329,12 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       if (!provider || !spendPermissionSignature || !activeSigner) {
         throw new Error('provider and spendPermissionSignature and activeSigner are required');
       }
+
+      const paymasterUrl = process.env.NEXT_PUBLIC_PAYMASTER_SERVICE_URL;
+      if (!paymasterUrl) {
+        throw new Error('paymasterUrl is required, please specify NEXT_PUBLIC_PAYMASTER_SERVICE_URL in your .env');
+      }
+
       const batchCalls =[
         {
           to: SPEND_PERMISSION_MANAGER_ADDRESS,
@@ -378,7 +364,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
               version: '1',
               capabilities: {
                   paymasterService: {
-                      url: process.env.NEXT_PUBLIC_PAYMASTER_SERVICE_URL!
+                      url: paymasterUrl
                   }
               }
             }   
