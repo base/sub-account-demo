@@ -40,7 +40,7 @@ export interface Post {
     period: number;
     start: number;
     end: number;
-    salt: BigInt;
+    salt: bigint;
     extraData: string;
   };
   

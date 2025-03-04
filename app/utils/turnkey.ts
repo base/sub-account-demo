@@ -47,10 +47,10 @@ export async function getTurnkeyAccount(): Promise<Signer> {
             const data = await resp.json();
             return data.signature as Hex;
         },
-        signTransaction: async ({ transaction }): Promise<Hex> => {
+        signTransaction: async ({ }): Promise<Hex> => {
             throw new Error('Not implemented');
         },
-        signTypedData: async ({ data }): Promise<Hex> => {
+        signTypedData: async ({ }): Promise<Hex> => {
             throw new Error('Not implemented');
         }
     });

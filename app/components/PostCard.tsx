@@ -1,5 +1,4 @@
 import { Post } from "../types";
-import { useState } from "react";
 import { timeAgo } from '../utils/timeAgo';
 import { toast } from 'react-hot-toast';
 import { useCoinbaseProvider } from '../CoinbaseProvider';
@@ -14,19 +13,16 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post, isTipping, setIsTipping }: PostCardProps) {
-  const [showTipModal, setShowTipModal] = useState(false);
   const { sendCallWithSpendPermission, currentChain } = useCoinbaseProvider();
   const { ethUsdPrice } = useEthUsdPrice();
   
-  // Example balance - you'll need to replace this with actual user balance from your app state
-
   const handleQuickTip = async () => {
     if (isTipping) return;
     setIsTipping(true);
     
-    const DEFAULT_TIP_USD = 0.1; // $1 tip
+    const DEFAULT_TIP_USD = 0.1; // $0.10 tip
     
-    const tipAmountEth = DEFAULT_TIP_USD / (ethUsdPrice || 2500); // fallback price if not loaded
+    const tipAmountEth = DEFAULT_TIP_USD / (ethUsdPrice || 2000); // fallback price if not loaded
     const tipAmountWei = BigInt(Math.floor(tipAmountEth * 1e18));
     
     const toastId = toast(
@@ -190,7 +186,6 @@ export default function PostCard({ post, isTipping, setIsTipping }: PostCardProp
             <button 
               className={`flex items-center space-x-2 hover:text-yellow-500 ${isTipping ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               onClick={handleQuickTip}
-              onDoubleClick={() => setShowTipModal(true)}
               disabled={isTipping}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

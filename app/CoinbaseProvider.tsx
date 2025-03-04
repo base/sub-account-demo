@@ -432,10 +432,12 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
 
     return (
       <CoinbaseContext.Provider value={{ 
-        disconnect, spendPermission, spendPermissionSignature, signSpendPermission, sendCallWithSpendPermission,
+        disconnect,
+        spendPermission, spendPermissionSignature, signSpendPermission, sendCallWithSpendPermission,
         remainingSpend, spendPermissionRequestedAllowance, setSpendPermissionRequestedAllowance,
         fetchAddressBalance, createLinkedAccount, addressBalanceWei,
-        provider, walletClient, publicClient, address, connect, subaccount, switchChain, currentChain, signerType, setSignerType: wrappedSetSignerType }}>
+        provider, walletClient, publicClient, address, connect,
+        subaccount, switchChain, currentChain, signerType, setSignerType: wrappedSetSignerType }}>
         {children}
       </CoinbaseContext.Provider>
     );
