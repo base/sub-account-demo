@@ -15,8 +15,8 @@ This is a demo of using Coinbase Smart Wallets with Sub Accounts. View the live 
     
 ## Setup
 
-1. This demo uses Neynar to fetch live farcaster posts. To run it with live data you'll need a Neynar API key which you can get [here](https://neynar.com/).
-2. 
+1. (optional) This demo uses Neynar to fetch live farcaster posts. To run it with live data you'll need a Neynar API key which you can get [here](https://neynar.com/). After signing up, you'll need to create an API key and set the Neynar environment variable in the `.env` file.
+2. (optional) This demo also supports using different signer implementations to power the Sub Accounts. Browser keys are the default, but you can also use [Turnkey](https://www.turnkey.com/) server wallets. To use Turnkey, you'll need to create an account and set the relevant Turnkey environment variables in the `.env` file.
 
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
