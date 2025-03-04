@@ -382,26 +382,29 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
           } else {
             args = [activeSigner];
           }
-          const hash = await provider.request({
+          const response = await provider.request({
               method: 'wallet_sendCalls',
               params: [
                 {
                   version: 1,
                   from: address,
                   chainId: toHex(baseSepolia.id),
-                  calls: [{
-                    to: subaccount,
-                    data: encodeFunctionData({
-                      args,
-                      functionName: signerType === 'browser' ? 'addOwnerPublicKey' : 'addOwnerAddress',
-                      abi: cbswAbi
-                    }),
-                    value: toHex(0),
-                  }]
+                  calls: [
+                    {
+                      to: subaccount,
+                      data: encodeFunctionData({
+                        args,
+                        functionName: signerType === 'browser' ? 'addOwnerPublicKey' : 'addOwnerAddress',
+                        abi: cbswAbi
+                      }),
+                      value: toHex(0),
+                    },
+                  ]
                 }
               ],
             });
-          return '';
+            await refreshPeriodSpend();
+            return response as string;
         }
         throw error;
       }      
