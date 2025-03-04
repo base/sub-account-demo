@@ -1,12 +1,14 @@
 'use client';
-import { createCoinbaseWalletSDK, getCryptoKeyAccount, ProviderInterface, removeCryptoKey } from "@coinbase/wallet-sdk";
+import { getCryptoKeyAccount, ProviderInterface, removeCryptoKey } from "@coinbase/wallet-sdk";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Address, Chain, createPublicClient, createWalletClient, custom, decodeAbiParameters, encodeFunctionData, fromHex, Hex, http, parseEther, toHex, WalletClient } from "viem";
+import { Address, Chain, createPublicClient, createWalletClient, custom, decodeAbiParameters, encodeFunctionData, Hex, http, parseEther, toHex, WalletClient } from "viem";
 import { baseSepolia } from "viem/chains";
 import { cbswAbi, spendPermissionManagerAbi } from "./abi";
 import { Signer, SignerType, SpendPermission, WalletConnectResponse } from "./types";
 import { getTurnkeyAccount } from "./utils/turnkey";
-import { SPEND_PERMISSION_DOMAIN, SPEND_PERMISSION_MANAGER_ADDRESS, SPEND_PERMISSION_REQUESTED_ALLOWANCE, SPEND_PERMISSION_TOKEN, SPEND_PERMISSION_TYPES } from "./utils/constants";
+import { SPEND_PERMISSION_MANAGER_ADDRESS, SPEND_PERMISSION_TOKEN } from "./utils/constants";
+import useCoinbaseSDK from "./hooks/useCoinbaseSDK";
+import useSpendPermission from "./hooks/useSpendPermission";
 
 
 type CoinbaseContextType = {
@@ -107,12 +109,6 @@ async function handleSwitchChain(provider: ProviderInterface) {
     });
 }
 
-type PeriodSpend = {
-  start: number;
-  end: number;
-  spend: bigint;
-}
-
 const getSignerFunc = (signerType: SignerType): (() => Promise<Signer>) => {
   if (signerType === 'browser') {
     return getCryptoKeyAccount;
@@ -128,18 +124,36 @@ const clearCache = () => {
 }
 
 export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
-    const [provider, setProvider] = useState<ProviderInterface | null>(null);
     const [subaccount, setSubaccount] = useState<Address | null>(null);
     const [address, setAddress] = useState<Address | null>(null);
     const [addressBalanceWei, setAddressBalanceWei] = useState<bigint>(BigInt(0));
     const [currentChain] = useState<Chain | null>(baseSepolia);
-    const [spendPermissionRequestedAllowance, setSpendPermissionRequestedAllowance] = useState<string>(`${SPEND_PERMISSION_REQUESTED_ALLOWANCE}`);
-    const [spendPermission, setSpendPermission] = useState<SpendPermission | null>(null);
-    const [spendPermissionSignature, setSpendPermissionSignature] = useState<string | null>(null);
-    const [,setPeriodSpend] = useState<PeriodSpend | null>(null);
-    const [remainingSpend, setRemainingSpend] = useState<bigint | null>(fromHex('0x71afd498d0000', 'bigint'));
     const [signerType, setSignerType] = useState<SignerType>('browser');
     const [activeSigner, setActiveSigner] = useState<Hex | null>(null);
+    const { provider } = useCoinbaseSDK({
+      chainId: baseSepolia.id,
+      getSignerFunc: getSignerFunc(signerType)
+    });
+
+    const publicClient = useMemo(() => createPublicClient({
+      chain: baseSepolia,
+      transport: http(),
+    }), []);
+
+    const {
+      spendPermissionRequestedAllowance,
+      setSpendPermissionRequestedAllowance,
+      spendPermission,
+      setSpendPermission,
+      spendPermissionSignature,
+      setSpendPermissionSignature,
+      refreshPeriodSpend,
+      remainingSpend,
+      signSpendPermission,
+      setRemainingSpend,
+      setPeriodSpend,
+    } = useSpendPermission({ provider, address, subaccount, publicClient });
+
     useEffect(() => {
         const cachedSignerType = localStorage.getItem('cbsw-demo-cachedSignerType') as SignerType;
         if (cachedSignerType) {
@@ -165,21 +179,6 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       getActiveSigner();
     }, [activeSigner, signerType]);
 
-    useEffect(() => {
-        const sdk = createCoinbaseWalletSDK({
-          appName: 'Coinbase Wallet demo',
-          appChainIds: [baseSepolia.id],
-          preference: {
-            options: "smartWalletOnly",
-            keysUrl: 'https://keys-dev.coinbase.com/connect',
-          },
-          subaccount: {
-            getSigner: getSignerFunc(signerType)
-          }
-        });
-        setProvider(sdk.getProvider());
-    }, [signerType]);
-
     const walletClient = useMemo(() => {
       if (!provider) return null;
       return createWalletClient({
@@ -193,11 +192,6 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
       });
     }, [provider]);
   
-    const publicClient = useMemo(() => createPublicClient({
-      chain: baseSepolia,
-      transport: http(),
-    }), []);
-
     const switchChain = useCallback(async () => {
       if (!provider) return;
       await handleSwitchChain(provider);
@@ -244,86 +238,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
 
       setSpendPermissionSignature(createLinkedAccountResp.spendPermission.signature as string);
       setSpendPermission(createLinkedAccountResp.spendPermission.permission as SpendPermission);
-  }, [provider, spendPermissionRequestedAllowance, activeSigner, signerType]);
-  
-    useEffect(() => {
-      const initSpendPermissionsFromStore = async () => {
-        // see if user has any spend permissions in local storage
-        const spendPermissions = localStorage.getItem('cbsw-demo-spendPermissions');
-        const spendPermissionsSignature = localStorage.getItem('cbsw-demo-spendPermissions-signature');
-        if (spendPermissions && spendPermissionsSignature) {
-        const spendPermission = JSON.parse(spendPermissions) as SpendPermission;
-          setSpendPermission(spendPermission);
-          setSpendPermissionSignature(spendPermissionsSignature);
-        }
-      }
-      initSpendPermissionsFromStore();
-    }, [])
-   
-    const signSpendPermission = useCallback(async ({
-      allowance, period, start, end, salt, extraData
-    }: {
-      allowance: string;
-      period: string;
-      start: string;
-      end: string;
-      salt: string;
-      extraData: string;
-    }) => {
-      if (!provider) return;
-      const spendPermission = {
-        account: address,
-        spender: subaccount,
-        token: SPEND_PERMISSION_TOKEN,
-        allowance,
-        period,
-        start,
-        end,
-        salt,
-        extraData
-      }
-      const signature = await provider.request({
-        method: 'eth_signTypedData_v4',
-        params: [
-          address,
-          {
-            types: SPEND_PERMISSION_TYPES,
-            primaryType: "SpendPermission",
-            message: spendPermission,
-            domain: SPEND_PERMISSION_DOMAIN
-          }
-        ]
-      });
-      setSpendPermission(spendPermission);
-      setSpendPermissionSignature(signature as string);
-      localStorage.setItem('cbsw-demo-spendPermissions', JSON.stringify(spendPermission));
-      localStorage.setItem('cbsw-demo-spendPermissions-signature', signature as string);
-    }, [provider, address, subaccount]);
-
-    const refreshPeriodSpend = useCallback(async () => {
-      try {
-        if (!spendPermission) return;
-        const currentPeriod = await publicClient.readContract({
-          address: SPEND_PERMISSION_MANAGER_ADDRESS,
-          abi: spendPermissionManagerAbi,
-          functionName: 'getCurrentPeriod',
-          args: [spendPermission],
-          blockTag: 'latest'
-        });
-        const remainingSpend = fromHex(spendPermission.allowance as `0x${string}`, 'bigint') - currentPeriod.spend.valueOf();
-        setRemainingSpend(remainingSpend);
-        setPeriodSpend(currentPeriod);
-
-      } catch (error) {
-        console.error('custom logs refreshPeriodSpend error:', error);
-      }
-    }, [spendPermission, publicClient, setPeriodSpend]);
-
-    useEffect(() => {
-      if (spendPermission) {
-        refreshPeriodSpend();
-      }
-    }, [spendPermission, refreshPeriodSpend]);
+  }, [provider, spendPermissionRequestedAllowance, activeSigner, signerType, setSpendPermissionSignature, setSpendPermission]);
 
     const sendCallWithSpendPermission = useCallback(async (calls: any[], txValueWei: bigint): Promise<string> => {
       if (!provider || !spendPermissionSignature || !activeSigner) {
@@ -373,6 +288,7 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
         return response as string;
       } catch (error) {
         if (error?.code === -32603 && error?.message?.includes('account owner not found')) {
+          console.debug('signer not found in list of current owners, adding as owner');
           let args;
           if (signerType === 'browser') {
             args = decodeAbiParameters(
@@ -403,7 +319,6 @@ export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
                 }
               ],
             });
-            await refreshPeriodSpend();
             return response as string;
         }
         throw error;
