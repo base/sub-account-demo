@@ -1,11 +1,10 @@
 'use client';
-import { createCoinbaseWalletSDK, getCryptoKeyAccount, ProviderInterface } from "@coinbase/wallet-sdk";
+import { createCoinbaseWalletSDK, getCryptoKeyAccount, ProviderInterface, removeCryptoKey } from "@coinbase/wallet-sdk";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Address, Chain, createPublicClient, createWalletClient, custom, decodeAbiParameters, encodeFunctionData, fromHex, Hex, http, parseEther, toHex, WalletClient } from "viem";
 import { baseSepolia } from "viem/chains";
 import { cbswAbi, spendPermissionManagerAbi } from "./abi";
 import { Signer, SignerType, SpendPermission, WalletConnectResponse } from "./types";
-import { clearObjectStore } from "./utils/clearIndexDB";
 import { getTurnkeyAccount } from "./utils/turnkey";
 import { SPEND_PERMISSION_REQUESTED_ALLOWANCE, SPEND_PERMISSION_TOKEN } from "./utils/constants";
 
@@ -126,13 +125,7 @@ const getSignerFunc = (signerType: SignerType): (() => Promise<Signer>) => {
 
 const clearCache = () => {
   localStorage.clear();
-  // Clear IndexedDB
-  const indexDbReq = indexedDB.open('cbwsdk', 1);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  indexDbReq.onsuccess = (event: any) => {
-    const db = event.target.result;
-    clearObjectStore(db, 'keys');
-  }
+  removeCryptoKey();
 }
 
 export function CoinbaseProvider({ children }: { children: React.ReactNode }) {
