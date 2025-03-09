@@ -16,6 +16,6 @@
 
 @layer utilities {
   .text-balance {
-    text-wrap: balance;
+    word-wrap: break-word;
   }
 }
