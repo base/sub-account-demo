@@ -9,6 +9,7 @@
     "lint": "next lint --fix"
   },
   "dependencies": {
+    "@base-org/account": "^1.1.1",
     "@coinbase/onchainkit": "^0.36.11",
     "@coinbase/wallet-sdk": "4.0.0-canary.20250708193645",
     "@neynar/nodejs-sdk": "^2.12.0",
